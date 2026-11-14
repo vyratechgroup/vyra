@@ -178,6 +178,9 @@ export function TryOnStep({
           : "Pilih 1 atasan dan 1 bawahan (atau salah satunya saja). Virtual try-on akan langsung memakaikan pilihanmu ke fotomu."}
       </Heading>
 
+      {/* Kartu Ringkasan Mini Hasil Analisis di Atas Langkah 4 */}
+      {state.reportPath && <AnalysisSummaryCard state={state} completed={completed} />}
+
       {job?.status === "failed" && (
         <div className="mt-6">
           <ErrorBox message="Try-on sebelumnya gagal di sisi penyedia. Kamu bisa mencoba sekali lagi." />
@@ -272,8 +275,6 @@ export function TryOnStep({
 
         {/* Rail */}
         <div>
-          {state.reportPath && <ReportCard state={state} completed={completed} />}
-
           {/* Quota Badges */}
           <div className="mb-6 flex flex-wrap items-center gap-2.5 rounded-2xl bg-cream/70 p-3 ring-1 ring-line">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted">Kuota Try-On:</span>
@@ -395,60 +396,113 @@ export function TryOnStep({
   );
 }
 
-function ReportCard({ state, completed }: { state: FlowState; completed?: boolean }) {
+function AnalysisSummaryCard({ state, completed }: { state: FlowState; completed?: boolean }) {
   const [copied, setCopied] = useState(false);
-  const url = state.reportPath ? `${window.location.origin}${state.reportPath}` : null;
-  if (!url) return null;
+  const url = state.reportPath ? `${typeof window !== "undefined" ? window.location.origin : ""}${state.reportPath}` : null;
+  if (!state.reportPath) return null;
 
   const analysis = state.analysis;
-  const season = analysis?.summary?.season
-    ? (seasonLabel[analysis.summary.season] ?? subSeasonLabel(analysis.summary.season))
+  const rawSeason = analysis?.summary?.season ?? null;
+  const season = rawSeason
+    ? (seasonLabel[rawSeason] ?? subSeasonLabel(rawSeason))
     : null;
-  const shape = analysis?.summary?.bodyShape
-    ? (shapeLabel[analysis.summary.bodyShape] ?? analysis.summary.bodyShape)
+
+  const rawShape = analysis?.summary?.bodyShape ?? null;
+  const shape = rawShape
+    ? (shapeLabel[rawShape]
+        ? `${shapeLabel[rawShape]}${
+            rawShape === "hourglass"
+              ? " (Jam Pasir)"
+              : rawShape === "pear"
+              ? " (Pir)"
+              : rawShape === "rectangle"
+              ? " (Persegi)"
+              : rawShape === "inverted_triangle"
+              ? " (Segitiga Terbalik)"
+              : ""
+          }`
+        : rawShape)
     : null;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: easeOut }}
-      className="mb-6 rounded-[1.75rem] bg-ink p-6 text-paper shadow-xl ring-1 ring-line"
+      className="mt-6 rounded-[1.75rem] bg-ink p-6 text-paper shadow-xl ring-1 ring-white/10"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent-light">
-          {completed ? "Hasil Lengkap Siap" : "Laporan Analisis Siap"}
-        </p>
-        {(season || shape) && (
-          <span className="rounded-full bg-paper/15 px-3 py-1 text-xs font-medium text-accent-light">
-            {[season, shape].filter(Boolean).join(" · ")}
-          </span>
-        )}
-      </div>
-      <p className="mt-2 font-display text-2xl leading-tight sm:text-3xl">
-        {completed ? "Gaya lengkapmu sudah selesai." : "Personal color & bentuk tubuhmu selesai dibaca."}
-      </p>
-      <p className="mt-2 text-xs text-paper/70 sm:text-sm">
-        {completed
-          ? "Personal color, body shape, dan hasil virtual try-on dalam satu halaman."
-          : "Buka laporan gayamu sekarang, atau coba pilihan pakaian di katalog samping."}
-      </p>
-      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2.5">
-        <TagButton label="Buka laporan" href={state.reportPath!} tone="paper" size="md" />
-        <button
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(url);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1800);
-            } catch {
-              /* clipboard blocked: the report link is still one click away */
-            }
-          }}
-          className="inline-flex items-center gap-2 rounded-full border border-paper/30 px-5 py-3 text-sm text-paper hover:bg-paper/10"
-        >
-          {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Tersalin" : "Salin tautan"}
-        </button>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent-light">
+              <Sparkles size={13} className="text-accent-light" />
+              Laporan Analisis Siap
+            </span>
+            {completed && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
+                <Check size={12} className="stroke-[3]" />
+                Try-On Selesai
+              </span>
+            )}
+          </div>
+
+          <h2 className="font-display text-2xl leading-tight sm:text-3xl">
+            {completed
+              ? "Gaya lengkapmu sudah selesai!"
+              : "Personal color & bentuk tubuhmu selesai dibaca."}
+          </h2>
+
+          <p className="text-xs text-paper/70 sm:text-sm">
+            {completed
+              ? "Personal color, bentuk tubuh, dan hasil virtual try-on kamu telah dirangkum dalam laporan lengkap."
+              : "Hasil analisis siap. Kamu bisa langsung membuka laporan lengkap sekarang, atau mencoba pakaian di bawah terlebih dahulu."}
+          </p>
+
+          {/* Kartu Ringkasan Mini: Badge Personal Color & Bentuk Tubuh */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {season && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-paper/15 px-3.5 py-1.5 text-xs font-medium text-paper ring-1 ring-paper/20">
+                <span className="text-accent-light font-semibold">Personal Color:</span>
+                <span className="font-bold text-paper">{season}</span>
+              </span>
+            )}
+            {shape && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-paper/15 px-3.5 py-1.5 text-xs font-medium text-paper ring-1 ring-paper/20">
+                <span className="text-accent-light font-semibold">Bentuk Tubuh:</span>
+                <span className="font-bold text-paper">{shape}</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons: Buka Laporan Lengkap & Salin Tautan */}
+        <div className="flex flex-wrap items-center gap-3 sm:shrink-0">
+          <TagButton
+            label="Buka Laporan Lengkap"
+            href={state.reportPath}
+            tone="paper"
+            size="md"
+          />
+          {url && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1800);
+                } catch {
+                  /* clipboard blocked */
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-paper/30 px-4 py-2.5 text-xs font-medium text-paper transition hover:bg-paper/10"
+              title="Salin tautan rahasia laporan"
+            >
+              {copied ? <Check size={14} className="text-emerald-400 stroke-[3]" /> : <Copy size={14} />}
+              <span>{copied ? "Tersalin" : "Salin tautan"}</span>
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );

@@ -22,7 +22,7 @@ const PHASES = [
   { at: "face", text: "Menimbang undertone dan kontras", ms: 2500 },
   { at: "body", text: "Mengukur garis bahu, pinggang, dan pinggul", ms: 2700 },
   { at: "body", text: "Mencocokkan siluet yang paling sesuai", ms: 2700 },
-  { at: "merge", text: "Menghubungkan analisis wajah & siluet tubuh", ms: 2200 },
+  { at: "merge", text: "Menghubungkan analisis wajah & siluet tubuh", ms: 1500 },
 ] as const;
 
 const PRINT: Record<Kind, { caption: string; aspect: string; big: string; small: string; tilt: number }> = {
@@ -135,13 +135,13 @@ export function ScanStep({
           {/* Merge badge celebrating the connection between face and body analysis */}
           {merged && (
             <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 280, damping: 18, delay: 0.2 }}
-              className="pointer-events-none absolute z-20 flex items-center gap-1.5 rounded-full bg-accent-deep px-4 py-1.5 text-xs font-semibold text-paper shadow-xl ring-2 ring-paper"
+              initial={{ scale: 0, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 18, delay: 0.15 }}
+              className="pointer-events-none absolute z-20 flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xl ring-4 ring-paper"
             >
-              <Sparkles size={13} className="text-accent-light" />
-              <span>Terhubung</span>
+              <Check size={14} className="stroke-[3]" />
+              <span>Analisis Selesai</span>
             </motion.div>
           )}
         </div>
@@ -156,11 +156,11 @@ export function ScanStep({
                 {i > 0 && <span className="h-px w-8 bg-line" />}
                 <span className={`flex items-center gap-1.5 transition-colors duration-500 ${isActive || isDone ? "text-accent-deep" : "text-muted"}`}>
                   <span
-                    className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] transition-colors duration-500 ${
-                      isDone ? "bg-accent-deep text-paper" : isActive ? "bg-accent-soft text-accent-deep" : "bg-cream text-muted"
+                    className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-colors duration-500 ${
+                      isDone ? "bg-emerald-600 text-white" : isActive ? "bg-accent-soft text-accent-deep" : "bg-cream text-muted"
                     }`}
                   >
-                    {isDone ? <Check size={11} /> : i + 1}
+                    {isDone ? <Check size={11} className="stroke-[3]" /> : i + 1}
                   </span>
                   {k === "face" ? "Warna" : "Bentuk tubuh"}
                 </span>
@@ -282,12 +282,12 @@ function ScanPrint({
             )}
             {done && (
               <motion.span
-                initial={{ scale: 0, rotate: -20 }}
+                initial={{ scale: 0, rotate: -25 }}
                 animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 16, delay: merged ? 0.1 : 0.3 }}
-                className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent-deep text-paper shadow"
+                transition={{ type: "spring", stiffness: 350, damping: 15, delay: merged ? 0.1 : 0.25 }}
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg ring-2 ring-white"
               >
-                <Check size={13} />
+                <Check size={14} className="stroke-[3]" />
               </motion.span>
             )}
           </span>
