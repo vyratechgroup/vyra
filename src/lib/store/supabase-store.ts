@@ -323,7 +323,7 @@ export function createSupabaseStore(urlOrClient: string | SupabaseClient, secret
         token_id: tokenUuid,
         type: 'analysis',
         status: 'queued',
-        provider: 'openrouter',
+        provider: 'gemini',
         attempt_count: 1,
         input: { ...a, attempts: 1 },
         created_at: now,
@@ -603,7 +603,7 @@ export function createSupabaseStore(urlOrClient: string | SupabaseClient, secret
       await db.from('usage_events').insert({
         id: uuid,
         job_id: e.jobId ? toUuid(e.jobId) : null,
-        provider: e.provider || 'openrouter',
+        provider: e.provider || 'gemini',
         feature: e.feature,
         estimated_cost_idr: e.estimatedCostIdr,
         status: e.status,
