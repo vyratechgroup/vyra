@@ -55,6 +55,13 @@ export async function getFlowState(sessionHash: string | null, reportSecret: str
         analysis.status === "needs_retake"
           ? [...(analysis.personalColor?.photo_quality.issues ?? []), ...(analysis.bodyShape?.photo_quality.issues ?? [])]
           : [],
+      summary:
+        analysis.status === "completed"
+          ? {
+              season: analysis.personalColor?.sub_season ?? analysis.personalColor?.primary_season ?? null,
+              bodyShape: analysis.bodyShape?.shape ?? null,
+            }
+          : null,
       // Short-lived signed links so the scan screen and the try-on stage can show the
       // visitor's own photos, also after a refresh. Retake/failed runs deleted them.
       facePhotoUrl: photosKept(analysis.status) ? signedMediaUrl(analysis.facePhotoId) : null,

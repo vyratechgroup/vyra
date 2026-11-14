@@ -61,8 +61,18 @@ export function AnalyzeFlow() {
   }, [refresh]);
 
   const serverStep = state ? stepOf(state) : null;
-  // While the photos upload, show the scan screen right away instead of a spinner.
-  const step = uploading ? "analyzing" : serverStep;
+  const [animatingScan, setAnimatingScan] = useState(false);
+
+  useEffect(() => {
+    if (serverStep === "analyzing") {
+      setAnimatingScan(true);
+    } else if (serverStep === "upload" && state?.analysis?.status && state.analysis.status !== "queued" && state.analysis.status !== "processing") {
+      setAnimatingScan(false);
+    }
+  }, [serverStep, state?.analysis?.status]);
+
+  // While the photos upload or the scan animation plays, show the scan screen instead of cutting abruptly.
+  const step = uploading || animatingScan ? "analyzing" : serverStep;
   const job = state?.tryon;
   const waiting =
     !uploading &&
@@ -97,11 +107,13 @@ export function AnalyzeFlow() {
 
     setUploadError(null);
     setUploading(true);
+    setAnimatingScan(true);
     try {
       const res = await api<FlowResponse>("/api/analysis", { method: "POST", body: form });
       setState(res.state);
     } catch (e) {
       setUploadError((e as Error).message);
+      setAnimatingScan(false);
     } finally {
       setUploading(false);
     }
@@ -148,7 +160,15 @@ export function AnalyzeFlow() {
               {step === "upload" && (
                 <PhotoStep state={state} photos={photos} onPhotos={setPhotos} onSubmit={submitPhotos} submitError={uploadError} />
               )}
-              {step === "analyzing" && <ScanStep face={faceShot} body={bodyShot} uploading={uploading} />}
+              {step === "analyzing" && (
+                <ScanStep
+                  face={faceShot}
+                  body={bodyShot}
+                  uploading={uploading}
+                  serverReady={serverStep === "tryon"}
+                  onComplete={() => setAnimatingScan(false)}
+                />
+              )}
               {step === "tryon" && <TryOnStep state={state} bodyUrl={bodyShot.url} onState={setState} />}
             </motion.div>
           )}

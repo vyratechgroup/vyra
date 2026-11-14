@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Check, Copy, ExternalLink, Shirt, Sparkles } from "lucide-react";
 import { easeOut } from "@/components/motion/reveal";
 import type { FlowState } from "@/services/session-state.service";
+import { seasonLabel, shapeLabel, subSeasonLabel } from "@/lib/labels";
 import { TagButton } from "@/components/ui/tag-button";
 import { ArchFrame, ErrorBox, Heading, api } from "./ui";
 
@@ -271,7 +272,7 @@ export function TryOnStep({
 
         {/* Rail */}
         <div>
-          {completed && <ReportCard state={state} />}
+          {state.reportPath && <ReportCard state={state} completed={completed} />}
 
           {/* Quota Badges */}
           <div className="mb-6 flex flex-wrap items-center gap-2.5 rounded-2xl bg-cream/70 p-3 ring-1 ring-line">
@@ -394,21 +395,45 @@ export function TryOnStep({
   );
 }
 
-function ReportCard({ state }: { state: FlowState }) {
+function ReportCard({ state, completed }: { state: FlowState; completed?: boolean }) {
   const [copied, setCopied] = useState(false);
   const url = state.reportPath ? `${window.location.origin}${state.reportPath}` : null;
   if (!url) return null;
+
+  const analysis = state.analysis;
+  const season = analysis?.summary?.season
+    ? (seasonLabel[analysis.summary.season] ?? subSeasonLabel(analysis.summary.season))
+    : null;
+  const shape = analysis?.summary?.bodyShape
+    ? (shapeLabel[analysis.summary.bodyShape] ?? analysis.summary.bodyShape)
+    : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: easeOut }}
-      className="rounded-[1.75rem] bg-ink p-6 text-paper"
+      className="mb-6 rounded-[1.75rem] bg-ink p-6 text-paper shadow-xl ring-1 ring-line"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent-light">Laporan siap</p>
-      <p className="mt-2 font-display text-3xl leading-tight">Personal color, body shape, dan try-on dalam satu halaman.</p>
-      <p className="mt-2 text-sm text-paper/70">Tautan rahasia ini aktif 72 jam. Simpan sebelum menutup halaman.</p>
-      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent-light">
+          {completed ? "Hasil Lengkap Siap" : "Laporan Analisis Siap"}
+        </p>
+        {(season || shape) && (
+          <span className="rounded-full bg-paper/15 px-3 py-1 text-xs font-medium text-accent-light">
+            {[season, shape].filter(Boolean).join(" · ")}
+          </span>
+        )}
+      </div>
+      <p className="mt-2 font-display text-2xl leading-tight sm:text-3xl">
+        {completed ? "Gaya lengkapmu sudah selesai." : "Personal color & bentuk tubuhmu selesai dibaca."}
+      </p>
+      <p className="mt-2 text-xs text-paper/70 sm:text-sm">
+        {completed
+          ? "Personal color, body shape, dan hasil virtual try-on dalam satu halaman."
+          : "Buka laporan gayamu sekarang, atau coba pilihan pakaian di katalog samping."}
+      </p>
+      <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2.5">
         <TagButton label="Buka laporan" href={state.reportPath!} tone="paper" size="md" />
         <button
           onClick={async () => {
