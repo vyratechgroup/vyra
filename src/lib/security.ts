@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { requireMediaSecret } from "./config";
 
 /** 256 bits of entropy, URL-safe. Used for report links and session cookies. */
@@ -6,8 +6,8 @@ export function newSecret() {
   return randomBytes(32).toString("base64url");
 }
 
-export function newId(prefix: string) {
-  return `${prefix}_${randomBytes(12).toString("base64url")}`;
+export function newId(_prefix?: string) {
+  return randomUUID();
 }
 
 export function sha256(value: string) {

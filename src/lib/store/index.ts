@@ -19,11 +19,6 @@ export function storeAvailable() {
 export function getStore(): Store {
   const { url, secretKey } = config.supabase;
   if (url && secretKey) {
-    if (config.freeCheckout) {
-      // ponytail: in free demo mode on serverless, use resilient Supabase KV store (system_settings + user-photos bucket)
-      // to avoid colliding with Architecture B admin schema (UUID PKs).
-      return (g.__flicksStoreInstance ??= createSupabaseKvStore(url, secretKey));
-    }
     return (g.__flicksStoreInstance ??= createSupabaseStore(url, secretKey));
   }
   if (config.isProduction) {

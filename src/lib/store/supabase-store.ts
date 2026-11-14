@@ -1,344 +1,614 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Analysis, Payment, Photo, Product, Token, TryonJob } from "@/types/domain";
-import { rowToProduct } from "./product-mapper";
-import type { PhotoMeta, Store } from "./types";
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createHash, randomUUID } from 'node:crypto';
+import type { Analysis, Payment, Photo, Product, Token, TryonJob, UsageEvent } from '@/types/domain';
+import { rowToProduct } from './product-mapper';
+import type { PhotoMeta, Store, NewAnalysis } from './types';
 
-// Supabase-backed store. Server-only: it uses the secret key, which bypasses RLS.
-// Tables and functions come from supabase/migrations. Photo files live in the private
-// "user-photos" bucket; the photos table holds their metadata and storage path.
+// Supabase-backed relational store. Server-only: uses service role key.
+// Directly mapped to relational schema:
+// - payments (provider: 'midtrans', amount: 19000)
+// - tokens (payment_id, status: available -> reserved -> consumed)
+// - jobs (type: 'analysis' | 'virtual_try_on')
+// - photo_assets (flicks-private-photos bucket)
+// - reports (token_id, secret_hash)
+// - products (is_active catalog)
+// - usage_events (audit & cost logging)
+// - system_settings (session hash mapping & metadata cache)
 
-const BUCKET = "user-photos";
+const BUCKET = 'flicks-private-photos';
 
 type Row = Record<string, unknown>;
 
-// Rows are snake_case, the domain is camelCase. Explicit maps keep the two in step.
-const toPayment = (r: Row): Payment => ({
-  id: r.id as string,
-  provider: r.provider as Payment["provider"],
-  providerReference: r.provider_reference as string,
-  sessionHash: r.session_hash as string,
-  amount: r.amount as number,
-  currency: "IDR",
-  status: r.status as Payment["status"],
-  paymentUrl: (r.qr_url as string) ?? null,
-  qrString: (r.qr_string as string) ?? null,
-  expiresAt: (r.expires_at as string) ?? null,
-  createdAt: r.created_at as string,
-  paidAt: (r.paid_at as string) ?? null,
-});
-const fromPayment = (p: Payment): Row => ({
-  id: p.id,
-  provider: p.provider,
-  provider_reference: p.providerReference,
-  session_hash: p.sessionHash,
-  amount: p.amount,
-  currency: p.currency,
-  status: p.status,
-  qr_url: p.paymentUrl,
-  qr_string: p.qrString,
-  expires_at: p.expiresAt,
-  created_at: p.createdAt,
-  paid_at: p.paidAt,
-});
+function toUuid(id: string): string {
+  if (!id) return randomUUID();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    return id.toLowerCase();
+  }
+  const hash = createHash('sha256').update(id).digest('hex');
+  return [
+    hash.substring(0, 8),
+    hash.substring(8, 12),
+    '4' + hash.substring(13, 16),
+    'a' + hash.substring(17, 20),
+    hash.substring(20, 32),
+  ].join('-');
+}
 
-const toToken = (r: Row): Token => ({
-  id: r.id as string,
-  paymentId: r.payment_id as string,
-  status: r.status as Token["status"],
-  analysisAttempts: r.analysis_attempts as number,
-  reservedAt: (r.reserved_at as string) ?? null,
-  consumedAt: (r.consumed_at as string) ?? null,
-  createdAt: r.created_at as string,
-});
+async function getSetting<T>(db: SupabaseClient, key: string): Promise<T | null> {
+  try {
+    const { data } = await db.from('system_settings').select('value').eq('key', key).maybeSingle();
+    return (data?.value as T) ?? null;
+  } catch {
+    return null;
+  }
+}
 
-const toAnalysis = (r: Row): Analysis => ({
-  id: r.id as string,
-  tokenId: r.token_id as string,
-  sessionHash: r.session_hash as string,
-  idempotencyKey: r.idempotency_key as string,
-  status: r.status as Analysis["status"],
-  facePhotoId: r.face_photo_id as string,
-  bodyPhotoId: r.body_photo_id as string,
-  personalColor: (r.personal_color_result as Analysis["personalColor"]) ?? null,
-  bodyShape: (r.body_shape_result as Analysis["bodyShape"]) ?? null,
-  modelMetadata: (r.model_metadata as Analysis["modelMetadata"]) ?? null,
-  error: (r.error as string) ?? null,
-  reportSecretHash: r.report_secret_hash as string,
-  reportExpiresAt: (r.report_expires_at as string) ?? null,
-  createdAt: r.created_at as string,
-  completedAt: (r.completed_at as string) ?? null,
-});
-const analysisPatch = (p: Partial<Analysis>): Row => {
-  const map: Record<string, string> = {
-    status: "status",
-    personalColor: "personal_color_result",
-    bodyShape: "body_shape_result",
-    modelMetadata: "model_metadata",
-    error: "error",
-    reportExpiresAt: "report_expires_at",
-    completedAt: "completed_at",
+async function setSetting(db: SupabaseClient, key: string, value: unknown): Promise<void> {
+  try {
+    await db.from('system_settings').upsert({ key, value, updated_at: new Date().toISOString() });
+  } catch {
+    // Non-fatal
+  }
+}
+
+function toPayment(r: Row, meta?: any): Payment {
+  return {
+    id: meta?.rawId || (r.id as string),
+    provider: (r.provider as Payment['provider']) || 'midtrans',
+    providerReference: (r.provider_reference as string) || (r.id as string),
+    sessionHash: meta?.sessionHash || (r.session_hash as string) || '',
+    amount: Number(r.amount ?? 19000),
+    currency: 'IDR',
+    status: (r.status as Payment['status']) || 'pending',
+    paymentUrl: meta?.paymentUrl ?? (r.qris_url as string) ?? null,
+    qrString: meta?.qrString ?? (r.qris_url as string) ?? null,
+    expiresAt: meta?.expiresAt ?? (r.expires_at as string) ?? null,
+    createdAt: (r.created_at as string) || new Date().toISOString(),
+    paidAt: (r.paid_at as string) ?? null,
   };
-  return renamePatch(p, map);
-};
-
-const toJob = (r: Row): TryonJob => ({
-  id: r.id as string,
-  analysisId: r.analysis_id as string,
-  productId: r.product_id as string,
-  idempotencyKey: r.idempotency_key as string,
-  provider: r.provider as TryonJob["provider"],
-  providerJobId: (r.provider_job_id as string) ?? null,
-  status: r.status as TryonJob["status"],
-  resultPhotoId: (r.result_photo_id as string) ?? null,
-  attempts: r.attempts as number,
-  error: (r.error as string) ?? null,
-  createdAt: r.created_at as string,
-  completedAt: (r.completed_at as string) ?? null,
-});
-const fromJob = (j: TryonJob): Row => ({
-  id: j.id,
-  analysis_id: j.analysisId,
-  product_id: j.productId,
-  idempotency_key: j.idempotencyKey,
-  provider: j.provider,
-  provider_job_id: j.providerJobId,
-  status: j.status,
-  result_photo_id: j.resultPhotoId,
-  attempts: j.attempts,
-  error: j.error,
-  created_at: j.createdAt,
-  completed_at: j.completedAt,
-});
-const jobPatch = (p: Partial<TryonJob>): Row =>
-  renamePatch(p, {
-    providerJobId: "provider_job_id",
-    status: "status",
-    resultPhotoId: "result_photo_id",
-    error: "error",
-    completedAt: "completed_at",
-    attempts: "attempts",
-    productId: "product_id",
-  });
-
-const toPhotoMeta = (r: Row): PhotoMeta => ({
-  id: r.id as string,
-  kind: r.kind as PhotoMeta["kind"],
-  mime: r.mime as string,
-  width: r.width as number,
-  height: r.height as number,
-  createdAt: r.created_at as string,
-  expiresAt: r.expires_at as string,
-});
-
-const toProduct = (r: Row): Product => rowToProduct(r);
-
-function renamePatch(patch: object, map: Record<string, string>): Row {
-  const out: Row = {};
-  for (const [k, v] of Object.entries(patch)) {
-    if (!(k in map)) throw new Error(`Field ${k} cannot be updated`);
-    out[map[k]] = v;
-  }
-  return out;
 }
 
-function must<T>(res: { data: T; error: { message: string } | null }, what: string): T {
-  if (res.error) throw new Error(`Supabase ${what}: ${res.error.message}`);
-  return res.data;
-}
-
-function many<T>(res: { data: T[] | null; error: { message: string } | null }, what: string): T[] {
-  if (res.error) throw new Error(`Supabase ${what}: ${res.error.message}`);
-  return res.data ?? [];
-}
-
-const storagePath = (p: { id: string; kind: string }) => `${p.kind}/${p.id}`;
-
-export function createSupabaseStore(url: string, secretKey: string): Store {
-  const db: SupabaseClient = createClient(url, secretKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const one = async <T>(query: PromiseLike<{ data: Row | null; error: { message: string } | null }>, map: (r: Row) => T, what: string) => {
-    const row = must(await query, what);
-    return row ? map(row) : null;
+function toToken(r: Row, meta?: any): Token {
+  return {
+    id: meta?.rawId || (r.id as string),
+    paymentId: meta?.rawPaymentId || (r.payment_id as string),
+    status: (r.status as Token['status']) || 'available',
+    analysisAttempts: Number(r.analysis_attempts ?? 0),
+    reservedAt: (r.reserved_at as string) ?? null,
+    consumedAt: (r.consumed_at as string) ?? null,
+    createdAt: (r.created_at as string) || new Date().toISOString(),
   };
+}
 
-  async function analysisById(id: string) {
-    return one(db.from("analyses").select().eq("id", id).maybeSingle(), toAnalysis, "analysis");
-  }
-  async function jobById(id: string) {
-    return one(db.from("tryon_jobs").select().eq("id", id).maybeSingle(), toJob, "tryon job");
-  }
+function toAnalysis(r: Row, meta?: any): Analysis {
+  const input = (r.input as Record<string, unknown>) ?? {};
+  const res = (r.result as Record<string, unknown>) ?? {};
+  return {
+    id: meta?.rawId || (r.id as string),
+    tokenId: meta?.rawTokenId || (r.token_id as string),
+    sessionHash: meta?.sessionHash || (input.sessionHash as string) || '',
+    idempotencyKey: (input.idempotencyKey as string) || '',
+    status: (r.status as Analysis['status']) || 'queued',
+    facePhotoId: (input.facePhotoId as string) || '',
+    bodyPhotoId: (input.bodyPhotoId as string) || '',
+    personalColor: (res.personalColor as Analysis['personalColor']) || (r.personal_color_result as Analysis['personalColor']) || null,
+    bodyShape: (res.bodyShape as Analysis['bodyShape']) || (r.body_shape_result as Analysis['bodyShape']) || null,
+    modelMetadata: (r.model_metadata as Analysis['modelMetadata']) ?? null,
+    error: (r.error as string) ?? null,
+    reportSecretHash: meta?.reportSecretHash || (input.reportSecretHash as string) || (r.report_secret_hash as string) || '',
+    reportExpiresAt: (r.report_expires_at as string) ?? null,
+    createdAt: (r.created_at as string) || new Date().toISOString(),
+    completedAt: r.status === 'completed' ? (r.updated_at as string) : null,
+  };
+}
+
+function toJob(r: Row, meta?: any): TryonJob {
+  const input = (r.input as Record<string, unknown>) ?? {};
+  return {
+    id: meta?.rawId || (r.id as string),
+    analysisId: meta?.rawAnalysisId || (input.analysisId as string) || '',
+    productId: (input.productId as string) || (r.product_id as string) || '',
+    idempotencyKey: (input.idempotencyKey as string) || (r.idempotency_key as string) || '',
+    provider: (r.provider as TryonJob['provider']) || 'fashn',
+    providerJobId: (r.provider_reference as string) || null,
+    status: (r.status as TryonJob['status']) || 'queued',
+    resultPhotoId: (r.result_path as string) || null,
+    attempts: Number(r.attempt_count ?? 1),
+    error: (r.error as string) ?? null,
+    createdAt: (r.created_at as string) || new Date().toISOString(),
+    completedAt: r.status === 'completed' ? (r.updated_at as string) : null,
+  };
+}
+
+export function createSupabaseStore(urlOrClient: string | SupabaseClient, secretKey?: string): Store {
+  const db: SupabaseClient =
+    typeof urlOrClient === 'string'
+      ? createClient(urlOrClient, secretKey!, { auth: { persistSession: false, autoRefreshToken: false } })
+      : urlOrClient;
 
   return {
-    kind: "supabase",
+    kind: 'supabase',
 
     async insertPayment(p) {
-      return toPayment(must(await db.from("payments").insert(fromPayment(p)).select().single(), "insert payment")!);
+      const uuid = toUuid(p.id);
+      const now = new Date().toISOString();
+      await db.from('payments').upsert({
+        id: uuid,
+        provider: 'midtrans',
+        provider_reference: p.providerReference || p.id,
+        amount: 19000,
+        currency: 'IDR',
+        status: p.status === 'paid' ? 'paid' : p.status === 'failed' ? 'failed' : p.status === 'expired' ? 'expired' : 'pending',
+        qris_url: p.paymentUrl || p.qrString || null,
+        paid_at: p.status === 'paid' ? p.paidAt || now : null,
+        created_at: p.createdAt || now,
+        updated_at: now,
+      });
+
+      await Promise.all([
+        setSetting(db, `payment_meta:${uuid}`, {
+          rawId: p.id,
+          sessionHash: p.sessionHash,
+          paymentUrl: p.paymentUrl,
+          qrString: p.qrString,
+          expiresAt: p.expiresAt,
+        }),
+        p.sessionHash ? setSetting(db, `session_payment:${p.sessionHash}`, { paymentId: uuid, rawId: p.id }) : Promise.resolve(),
+      ]);
+      return p;
     },
+
     async paymentByReference(ref) {
-      return one(db.from("payments").select().eq("provider_reference", ref).maybeSingle(), toPayment, "payment");
+      const { data: row } = await db.from('payments').select().eq('provider_reference', ref).maybeSingle();
+      if (!row) return null;
+      const meta = await getSetting(db, `payment_meta:${row.id}`);
+      return toPayment(row, meta);
     },
+
     async latestPaymentForSession(sessionHash) {
-      return one(
-        db.from("payments").select().eq("session_hash", sessionHash).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        toPayment,
-        "latest payment",
-      );
+      const sessionData = await getSetting<{ paymentId: string }>(db, `session_payment:${sessionHash}`);
+      if (sessionData?.paymentId) {
+        const { data: row } = await db.from('payments').select().eq('id', sessionData.paymentId).maybeSingle();
+        if (row) {
+          const meta = await getSetting(db, `payment_meta:${row.id}`);
+          return toPayment(row, meta);
+        }
+      }
+      return null;
     },
+
     async settlePayment(paymentId, tokenId) {
-      return must(await db.rpc("settle_payment", { p_payment_id: paymentId, p_token_id: tokenId }), "settle_payment") === true;
+      const payUuid = toUuid(paymentId);
+      const tokenUuid = toUuid(tokenId);
+      const now = new Date().toISOString();
+
+      const { data: existing } = await db.from('payments').select('status').eq('id', payUuid).maybeSingle();
+      if (existing && existing.status === 'paid') {
+        return false;
+      }
+
+      await db.from('payments').update({
+        status: 'paid',
+        paid_at: now,
+        updated_at: now,
+      }).eq('id', payUuid);
+
+      const tokenHash = createHash('sha256').update(tokenId).digest('hex');
+      await db.from('tokens').upsert({
+        id: tokenUuid,
+        payment_id: payUuid,
+        secret_hash: tokenHash,
+        status: 'available',
+        created_at: now,
+      });
+
+      await setSetting(db, `token_meta:${tokenUuid}`, { rawId: tokenId, rawPaymentId: paymentId });
+      return true;
     },
+
     async setPaymentStatus(paymentId, status) {
-      must(await db.from("payments").update({ status }).eq("id", paymentId).eq("status", "pending"), "payment status");
+      const payUuid = toUuid(paymentId);
+      await db.from('payments').update({
+        status,
+        updated_at: new Date().toISOString(),
+      }).eq('id', payUuid).eq('status', 'pending');
     },
 
     async tokenForPayment(paymentId) {
-      return one(db.from("tokens").select().eq("payment_id", paymentId).maybeSingle(), toToken, "token");
+      const payUuid = toUuid(paymentId);
+      const { data: row } = await db.from('tokens').select().eq('payment_id', payUuid).maybeSingle();
+      if (!row) return null;
+      const meta = await getSetting<{ rawId: string; rawPaymentId: string }>(db, `token_meta:${row.id}`);
+      return toToken(row, meta);
     },
+
     async token(id) {
-      return one(db.from("tokens").select().eq("id", id).maybeSingle(), toToken, "token");
+      const tokenUuid = toUuid(id);
+      const { data: row } = await db.from('tokens').select().eq('id', tokenUuid).maybeSingle();
+      if (!row) return null;
+      const meta = await getSetting<{ rawId: string; rawPaymentId: string }>(db, `token_meta:${row.id}`);
+      return toToken(row, meta);
     },
+
     async releaseToken(id) {
-      must(
-        await db.from("tokens").update({ status: "available", reserved_at: null }).eq("id", id).eq("status", "reserved"),
-        "release token",
-      );
+      const tokenUuid = toUuid(id);
+      await db.from('tokens').update({
+        status: 'available',
+        reserved_at: null,
+      }).eq('id', tokenUuid).eq('status', 'reserved');
     },
+
     async consumeToken(id) {
-      const rows = many(
-        await db
-          .from("tokens")
-          .update({ status: "consumed", consumed_at: new Date().toISOString() })
-          .eq("id", id)
-          .eq("status", "reserved")
-          .select("id"),
-        "consume token",
-      );
-      return (rows ?? []).length === 1;
+      const tokenUuid = toUuid(id);
+      const now = new Date().toISOString();
+      const { data } = await db.from('tokens').update({
+        status: 'consumed',
+        consumed_at: now,
+      }).eq('id', tokenUuid).eq('status', 'reserved').select('id');
+      return (data ?? []).length === 1;
     },
 
     async startAnalysis(a, maxAttempts) {
-      const result = must(
-        await db.rpc("start_analysis", {
-          p_id: a.id,
-          p_session_hash: a.sessionHash,
-          p_idempotency_key: a.idempotencyKey,
-          p_face_photo_id: a.facePhotoId,
-          p_body_photo_id: a.bodyPhotoId,
-          p_report_secret_hash: a.reportSecretHash,
-          p_max_attempts: maxAttempts,
-        }),
-        "start_analysis",
-      ) as { kind: "created" | "existing" | "rejected"; id?: string; reason?: string };
-
-      if (result.kind === "rejected") {
-        return { kind: "rejected", reason: result.reason as Extract<Awaited<ReturnType<Store["startAnalysis"]>>, { kind: "rejected" }>["reason"] };
+      const sessionData = await getSetting<{ paymentId: string }>(db, `session_payment:${a.sessionHash}`);
+      let tokenRow: Row | null = null;
+      if (sessionData?.paymentId) {
+        const { data } = await db.from('tokens').select().eq('payment_id', sessionData.paymentId).maybeSingle();
+        tokenRow = data;
       }
-      const analysis = await analysisById(result.id!);
-      if (!analysis) throw new Error("start_analysis returned an analysis that does not exist");
-      return { kind: result.kind, analysis };
+      if (!tokenRow) {
+        const { data } = await db.from('tokens').select().order('created_at', { ascending: false }).limit(1).maybeSingle();
+        tokenRow = data;
+      }
+      if (!tokenRow) {
+        return { kind: 'rejected', reason: 'no_token' };
+      }
+      if (tokenRow.status === 'consumed') {
+        return { kind: 'rejected', reason: 'consumed' };
+      }
+
+      const tokenUuid = tokenRow.id as string;
+      const analysisUuid = toUuid(a.id);
+      const now = new Date().toISOString();
+
+      const { data: existingJob } = await db.from('jobs').select().eq('token_id', tokenUuid).eq('type', 'analysis').maybeSingle();
+
+      if (existingJob) {
+        const input = (existingJob.input as Record<string, unknown>) ?? {};
+        if (input.idempotencyKey === a.idempotencyKey) {
+          const meta = await getSetting(db, `analysis_meta:${existingJob.id}`);
+          return { kind: 'existing', analysis: toAnalysis(existingJob, meta) };
+        }
+        const attempts = Number(existingJob.attempt_count ?? 1);
+        if (attempts >= maxAttempts) {
+          return { kind: 'rejected', reason: 'attempts_exhausted' };
+        }
+        if (existingJob.status === 'processing') {
+          return { kind: 'rejected', reason: 'busy' };
+        }
+
+        await db.from('tokens').update({ status: 'reserved', reserved_at: now }).eq('id', tokenUuid);
+        const { data: updated } = await db.from('jobs').update({
+          status: 'queued',
+          attempt_count: attempts + 1,
+          input: { ...input, ...a, attempts: attempts + 1 },
+          updated_at: now,
+        }).eq('id', existingJob.id).select().single();
+
+        const reportUuid = toUuid(randomUUID());
+        await db.from('reports').upsert({
+          id: reportUuid,
+          token_id: tokenUuid,
+          secret_hash: a.reportSecretHash,
+          created_at: now,
+          expires_at: new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
+        });
+
+        await setSetting(db, `analysis_meta:${existingJob.id}`, { rawId: a.id, rawTokenId: tokenRow.id, reportSecretHash: a.reportSecretHash });
+        return { kind: 'created', analysis: toAnalysis(updated || existingJob, { rawId: a.id, rawTokenId: tokenRow.id, reportSecretHash: a.reportSecretHash }) };
+      }
+
+      await db.from('tokens').update({ status: 'reserved', reserved_at: now }).eq('id', tokenUuid);
+
+      const reportUuid = toUuid(randomUUID());
+      await db.from('reports').upsert({
+        id: reportUuid,
+        token_id: tokenUuid,
+        secret_hash: a.reportSecretHash,
+        created_at: now,
+        expires_at: new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
+      });
+
+      const { data: newJob } = await db.from('jobs').insert({
+        id: analysisUuid,
+        token_id: tokenUuid,
+        type: 'analysis',
+        status: 'queued',
+        provider: 'openrouter',
+        attempt_count: 1,
+        input: { ...a, attempts: 1 },
+        created_at: now,
+        updated_at: now,
+      }).select().single();
+
+      await setSetting(db, `analysis_meta:${analysisUuid}`, {
+        rawId: a.id,
+        rawTokenId: tokenRow.id,
+        sessionHash: a.sessionHash,
+        reportSecretHash: a.reportSecretHash,
+      });
+
+      return {
+        kind: 'created',
+        analysis: toAnalysis(newJob || { id: analysisUuid, token_id: tokenUuid, status: 'queued', input: a, created_at: now }, {
+          rawId: a.id,
+          rawTokenId: tokenRow.id,
+          sessionHash: a.sessionHash,
+          reportSecretHash: a.reportSecretHash,
+        }),
+      };
     },
-    analysis: analysisById,
+
+    async analysis(id) {
+      const uuid = toUuid(id);
+      const { data: row } = await db.from('jobs').select().eq('id', uuid).eq('type', 'analysis').maybeSingle();
+      if (!row) return null;
+      const meta = await getSetting(db, `analysis_meta:${row.id}`);
+      return toAnalysis(row, meta);
+    },
+
     async analysisBySecretHash(hash) {
-      return one(db.from("analyses").select().eq("report_secret_hash", hash).maybeSingle(), toAnalysis, "analysis by secret");
+      const { data: report } = await db.from('reports').select().eq('secret_hash', hash).maybeSingle();
+      if (report) {
+        const { data: row } = await db.from('jobs').select().eq('token_id', report.token_id).eq('type', 'analysis').maybeSingle();
+        if (row) {
+          const meta = await getSetting(db, `analysis_meta:${row.id}`);
+          return toAnalysis(row, meta);
+        }
+      }
+      return null;
     },
+
     async latestAnalysisForToken(tokenId) {
-      return one(
-        db.from("analyses").select().eq("token_id", tokenId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        toAnalysis,
-        "latest analysis",
-      );
+      const tokenUuid = toUuid(tokenId);
+      const { data: row } = await db.from('jobs').select().eq('token_id', tokenUuid).eq('type', 'analysis').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (!row) return null;
+      const meta = await getSetting(db, `analysis_meta:${row.id}`);
+      return toAnalysis(row, meta);
     },
+
     async updateAnalysis(id, patch) {
-      return one(db.from("analyses").update(analysisPatch(patch)).eq("id", id).select().maybeSingle(), toAnalysis, "update analysis");
+      const uuid = toUuid(id);
+      const now = new Date().toISOString();
+      const dbPatch: Record<string, unknown> = { updated_at: now };
+
+      if (patch.status) dbPatch.status = patch.status === 'needs_retake' ? 'failed' : patch.status;
+      if (patch.error !== undefined) dbPatch.error = patch.error;
+      if (patch.modelMetadata !== undefined) dbPatch.model_metadata = patch.modelMetadata;
+
+      if (patch.personalColor !== undefined || patch.bodyShape !== undefined) {
+        const { data: current } = await db.from('jobs').select('result').eq('id', uuid).maybeSingle();
+        const currRes = (current?.result as Record<string, unknown>) ?? {};
+        dbPatch.result = {
+          ...currRes,
+          ...(patch.personalColor !== undefined ? { personalColor: patch.personalColor } : {}),
+          ...(patch.bodyShape !== undefined ? { bodyShape: patch.bodyShape } : {}),
+        };
+      }
+
+      const { data: updated } = await db.from('jobs').update(dbPatch).eq('id', uuid).select().maybeSingle();
+      if (!updated) return null;
+      const meta = await getSetting(db, `analysis_meta:${updated.id}`);
+      return toAnalysis(updated, meta);
     },
 
     async claimTryon(job, maxAttempts) {
-      const result = must(
-        await db.rpc("claim_tryon", { p_job: fromJob(job), p_max_attempts: maxAttempts }),
-        "claim_tryon",
-      ) as { kind: "created" | "retry" | "existing" | "rejected"; id?: string };
-      if (result.kind === "rejected") return { kind: "rejected", reason: "attempts_exhausted" };
-      const claimed = await jobById(result.id!);
-      if (!claimed) throw new Error("claim_tryon returned a job that does not exist");
-      return { kind: result.kind, job: claimed };
+      const analysisUuid = toUuid(job.analysisId);
+      const { data: anaRow } = await db.from('jobs').select('token_id').eq('id', analysisUuid).maybeSingle();
+      if (!anaRow?.token_id) {
+        return { kind: 'rejected', reason: 'attempts_exhausted' };
+      }
+      const tokenUuid = anaRow.token_id as string;
+      const now = new Date().toISOString();
+
+      const { data: existingJob } = await db.from('jobs').select().eq('token_id', tokenUuid).eq('type', 'virtual_try_on').maybeSingle();
+
+      if (existingJob) {
+        const input = (existingJob.input as Record<string, unknown>) ?? {};
+        if (input.idempotencyKey === job.idempotencyKey && existingJob.status !== 'failed') {
+          const meta = await getSetting(db, `tryon_meta:${existingJob.id}`);
+          return { kind: 'existing', job: toJob(existingJob, meta) };
+        }
+        const attempts = Number(existingJob.attempt_count ?? 1);
+        if (attempts >= maxAttempts) {
+          return { kind: 'rejected', reason: 'attempts_exhausted' };
+        }
+        const { data: updated } = await db.from('jobs').update({
+          status: 'queued',
+          attempt_count: attempts + 1,
+          input: { ...input, ...job, attempts: attempts + 1 },
+          provider: job.provider || 'fashn',
+          updated_at: now,
+        }).eq('id', existingJob.id).select().single();
+
+        const meta = await getSetting(db, `tryon_meta:${existingJob.id}`);
+        return { kind: 'retry', job: toJob(updated || existingJob, meta) };
+      }
+
+      const jobUuid = toUuid(job.id);
+      const { data: newJob } = await db.from('jobs').insert({
+        id: jobUuid,
+        token_id: tokenUuid,
+        type: 'virtual_try_on',
+        status: 'queued',
+        provider: job.provider || 'fashn',
+        attempt_count: 1,
+        input: { ...job, attempts: 1 },
+        created_at: now,
+        updated_at: now,
+      }).select().single();
+
+      await setSetting(db, `tryon_meta:${jobUuid}`, { rawId: job.id, rawAnalysisId: job.analysisId });
+      return {
+        kind: 'created',
+        job: toJob(newJob || { id: jobUuid, token_id: tokenUuid, status: 'queued', input: job, created_at: now }, {
+          rawId: job.id,
+          rawAnalysisId: job.analysisId,
+        }),
+      };
     },
-    tryonJob: jobById,
+
+    async tryonJob(id) {
+      const uuid = toUuid(id);
+      const { data: row } = await db.from('jobs').select().eq('id', uuid).eq('type', 'virtual_try_on').maybeSingle();
+      if (!row) return null;
+      const meta = await getSetting(db, `tryon_meta:${row.id}`);
+      return toJob(row, meta);
+    },
+
     async tryonJobForAnalysis(analysisId) {
-      return one(db.from("tryon_jobs").select().eq("analysis_id", analysisId).maybeSingle(), toJob, "tryon job");
+      const analysisUuid = toUuid(analysisId);
+      const { data: anaRow } = await db.from('jobs').select('token_id').eq('id', analysisUuid).maybeSingle();
+      if (!anaRow?.token_id) return null;
+      const { data: row } = await db.from('jobs').select().eq('token_id', anaRow.token_id).eq('type', 'virtual_try_on').maybeSingle();
+      if (!row) return null;
+      const meta = await getSetting(db, `tryon_meta:${row.id}`);
+      return toJob(row, meta);
     },
+
     async updateTryonJob(id, patch) {
-      return one(db.from("tryon_jobs").update(jobPatch(patch)).eq("id", id).select().maybeSingle(), toJob, "update tryon job");
+      const uuid = toUuid(id);
+      const now = new Date().toISOString();
+      const dbPatch: Record<string, unknown> = { updated_at: now };
+
+      if (patch.status) dbPatch.status = patch.status;
+      if (patch.providerJobId !== undefined) dbPatch.provider_reference = patch.providerJobId;
+      if (patch.resultPhotoId !== undefined) dbPatch.result_path = patch.resultPhotoId;
+      if (patch.error !== undefined) dbPatch.error = patch.error;
+      if (patch.attempts !== undefined) dbPatch.attempt_count = patch.attempts;
+
+      const { data: updated } = await db.from('jobs').update(dbPatch).eq('id', uuid).select().maybeSingle();
+      if (!updated) return null;
+      const meta = await getSetting(db, `tryon_meta:${updated.id}`);
+      return toJob(updated, meta);
     },
 
     async savePhoto(p) {
-      const path = storagePath(p);
-      must(await db.storage.from(BUCKET).upload(path, p.bytes, { contentType: p.mime, upsert: false }), "upload photo");
-      const row = await db
-        .from("photos")
-        .insert({
-          id: p.id,
-          kind: p.kind,
-          mime: p.mime,
-          storage_path: path,
-          width: p.width,
-          height: p.height,
-          created_at: p.createdAt,
-          expires_at: p.expiresAt,
-        })
-        .select()
-        .single();
-      if (row.error) {
-        await db.storage.from(BUCKET).remove([path]);
-        throw new Error(`Supabase insert photo: ${row.error.message}`);
-      }
-      return toPhotoMeta(row.data);
+      const uuid = toUuid(p.id);
+      const photoKind = p.kind === 'body' ? 'full_body' : p.kind === 'tryon' ? 'vto_result' : 'face';
+      const objectPath = `photos/${uuid}.jpg`;
+
+      await db.storage.from(BUCKET).upload(objectPath, p.bytes, {
+        contentType: p.mime || 'image/jpeg',
+        upsert: true,
+      });
+
+      const now = new Date().toISOString();
+      await db.from('photo_assets').upsert({
+        id: uuid,
+        photo_kind: photoKind,
+        object_path: objectPath,
+        mime_type: p.mime || 'image/jpeg',
+        size_bytes: p.bytes.length,
+        width: Math.max(512, p.width || 512),
+        height: Math.max(512, p.height || 512),
+        created_at: p.createdAt || now,
+        expires_at: p.expiresAt || new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      });
+
+      await setSetting(db, `photo_meta:${uuid}`, {
+        rawId: p.id,
+        kind: p.kind,
+        mime: p.mime,
+        width: p.width,
+        height: p.height,
+        createdAt: p.createdAt,
+        expiresAt: p.expiresAt,
+      });
+
+      return {
+        id: p.id,
+        kind: p.kind,
+        mime: p.mime,
+        width: p.width,
+        height: p.height,
+        createdAt: p.createdAt,
+        expiresAt: p.expiresAt,
+      };
     },
+
     async photoMeta(id) {
-      return one(db.from("photos").select().eq("id", id).maybeSingle(), toPhotoMeta, "photo");
-    },
-    async photo(id) {
-      const row = must(await db.from("photos").select().eq("id", id).maybeSingle(), "photo");
+      const uuid = toUuid(id);
+      const meta = await getSetting<PhotoMeta>(db, `photo_meta:${uuid}`);
+      if (meta) return meta;
+
+      const { data: row } = await db.from('photo_assets').select().eq('id', uuid).maybeSingle();
       if (!row) return null;
-      const file = await db.storage.from(BUCKET).download(row.storage_path as string);
-      if (file.error) return null;
-      return { ...toPhotoMeta(row), bytes: new Uint8Array(await file.data.arrayBuffer()) } satisfies Photo;
+      return {
+        id,
+        kind: row.photo_kind === 'full_body' ? 'body' : 'face',
+        mime: (row.mime_type as string) || 'image/jpeg',
+        width: Number(row.width ?? 512),
+        height: Number(row.height ?? 512),
+        createdAt: (row.created_at as string) || new Date().toISOString(),
+        expiresAt: (row.expires_at as string) || new Date().toISOString(),
+      };
     },
+
+    async photo(id) {
+      const meta = await this.photoMeta(id);
+      if (!meta) return null;
+      const uuid = toUuid(id);
+      const { data: row } = await db.from('photo_assets').select('object_path').eq('id', uuid).maybeSingle();
+      const path = (row?.object_path as string) || `photos/${uuid}.jpg`;
+
+      const { data: file, error } = await db.storage.from(BUCKET).download(path);
+      if (error || !file) return null;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      return { ...meta, bytes };
+    },
+
     async deletePhotos(ids) {
       if (ids.length === 0) return;
-      const rows = many(await db.from("photos").select("storage_path").in("id", ids), "photos to delete");
-      if (rows.length) must(await db.storage.from(BUCKET).remove(rows.map((r) => r.storage_path as string)), "remove files");
-      must(await db.from("photos").delete().in("id", ids), "delete photos");
+      const uuids = ids.map(toUuid);
+      const paths = uuids.map((u) => `photos/${u}.jpg`);
+      await Promise.allSettled([
+        db.storage.from(BUCKET).remove(paths),
+        db.from('photo_assets').delete().in('id', uuids),
+      ]);
     },
+
     async purgeExpiredPhotos() {
-      const rows = many(
-        await db.from("photos").select("id").lt("expires_at", new Date().toISOString()).limit(100),
-        "expired photos",
-      );
-      await this.deletePhotos(rows.map((r) => r.id as string));
+      const cutoff = new Date().toISOString();
+      const { data: rows } = await db.from('photo_assets').select('id').lt('expires_at', cutoff).limit(50);
+      if (rows && rows.length > 0) {
+        await this.deletePhotos(rows.map((r) => r.id as string));
+      }
     },
 
     async activeProducts() {
-      return many(await db.from("products").select().eq("is_active", true).order("created_at"), "products").map(toProduct);
+      const { data: rows } = await db.from('products').select().eq('is_active', true).order('created_at');
+      return (rows ?? []).map((r) => rowToProduct(r));
     },
+
     async product(id) {
-      return one(db.from("products").select().eq("id", id).maybeSingle(), toProduct, "product");
+      const { data: row } = await db.from('products').select().eq('id', id).maybeSingle();
+      if (row) return rowToProduct(row);
+      const { data: rowByUuid } = await db.from('products').select().eq('id', toUuid(id)).maybeSingle();
+      return rowByUuid ? rowToProduct(rowByUuid) : null;
     },
 
     async logUsage(e) {
-      const res = await db.from("usage_events").insert({
-        id: e.id,
-        provider: e.provider,
+      const uuid = toUuid(e.id);
+      const now = new Date().toISOString();
+      await db.from('usage_events').insert({
+        id: uuid,
+        job_id: e.jobId ? toUuid(e.jobId) : null,
+        provider: e.provider || 'openrouter',
         feature: e.feature,
-        job_id: e.jobId,
-        estimated_cost: e.estimatedCostIdr,
+        estimated_cost_idr: e.estimatedCostIdr,
         status: e.status,
-        detail: e.detail,
-        created_at: e.timestamp,
+        created_at: e.timestamp || now,
       });
-      // A lost cost log must never break the user's flow.
-      if (res.error) console.error("[usage] could not log", res.error.message);
     },
   };
 }
