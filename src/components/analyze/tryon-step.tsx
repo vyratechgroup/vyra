@@ -41,8 +41,21 @@ export function TryOnStep({
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"after" | "before">("after");
 
+  const summaryBodyShape = state.analysis?.summary?.bodyShape ?? null;
+  const summarySeason = state.analysis?.summary?.season ?? null;
+
   useEffect(() => {
-    api<Product[]>("/api/products").then((prods) => {
+    const params = new URLSearchParams();
+    if (summaryBodyShape) {
+      params.set("body_shape", summaryBodyShape);
+    }
+    if (summarySeason) {
+      params.set("color_tone", summarySeason);
+    }
+    const qs = params.toString();
+    const endpoint = qs ? `/api/products?${qs}` : "/api/products";
+
+    api<Product[]>(endpoint).then((prods) => {
       setProducts(prods);
       if (state.tryon?.productId) {
         const ids = state.tryon.productId.split(",").map((s) => s.trim());
@@ -56,7 +69,7 @@ export function TryOnStep({
         }
       }
     }, (e) => setError(e.message));
-  }, [state.tryon?.productId]);
+  }, [state.tryon?.productId, summaryBodyShape, summarySeason]);
 
   const job = state.tryon;
   const working = job?.status === "queued" || job?.status === "processing";
@@ -305,6 +318,23 @@ export function TryOnStep({
               {Array.from({ length: 6 }, (_, i) => (
                 <div key={i} className="aspect-[3/4] animate-pulse rounded-[1.25rem] bg-line/50" />
               ))}
+            </div>
+          )}
+
+          {products && products.length === 0 && !error && (
+            <div className="rounded-2xl border border-dashed border-line bg-paper/60 p-6 text-center text-sm text-muted">
+              <p className="font-medium text-ink">Belum ada pakaian yang sesuai</p>
+              <p className="mt-1 text-xs text-muted">
+                Katalog saat ini belum memiliki pakaian yang spesifik untuk bentuk tubuh{" "}
+                <span className="font-semibold text-ink">
+                  {summaryBodyShape ? (shapeLabel[summaryBodyShape] ?? summaryBodyShape) : "kamu"}
+                </span>{" "}
+                dan palet warna{" "}
+                <span className="font-semibold text-ink">
+                  {summarySeason ? (seasonLabel[summarySeason] ?? summarySeason) : "kamu"}
+                </span>
+                .
+              </p>
             </div>
           )}
 

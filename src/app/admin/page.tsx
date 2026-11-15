@@ -111,6 +111,11 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     void loadDashboardData();
+    // Auto-refresh poll every 8 seconds so all admin metrics remain live
+    const interval = setInterval(() => {
+      void loadDashboardData();
+    }, 8000);
+    return () => clearInterval(interval);
   }, [loadDashboardData]);
 
   const handleCreateProduct = async (input: CreateProductInput) => {

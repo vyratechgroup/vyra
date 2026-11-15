@@ -166,4 +166,39 @@ describe('startTryon & refreshTryon with Dual Selection', () => {
     );
     expect(job.providerJobId).toBe('step2:fashn-job-2');
   });
+
+  it('returns existing job immediately on re-click without calling FASHN submitTryon (zero token waste)', async () => {
+    mockStore.product.mockImplementation(async (id: string) => ({
+      id,
+      name: 'Item',
+      category: 'Atasan',
+      isActive: true,
+      imagePath: '/public/catalog/top.jpg',
+      labels: { fashnCategory: 'tops' },
+    }));
+
+    const existingJob = {
+      id: 'vto-existing',
+      analysisId: 'an-1',
+      productId: 'top-1',
+      status: 'completed',
+      resultPhotoId: 'pho-done',
+      attempts: 1,
+    };
+
+    mockStore.claimTryon.mockResolvedValue({
+      kind: 'existing',
+      job: existingJob,
+    });
+
+    const job = await startTryon({
+      sessionHash: 'hash-1',
+      analysisId: 'an-1',
+      productId: 'top-1',
+    });
+
+    expect(job).toEqual(existingJob);
+    expect(fashn.submitTryon).not.toHaveBeenCalled();
+  });
 });
+

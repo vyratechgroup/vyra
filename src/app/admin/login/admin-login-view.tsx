@@ -28,7 +28,7 @@ export function AdminLoginView({
   };
 
   return (
-    <main className={styles.loginShell}>
+    <main className={styles.loginShell} data-lenis-prevent>
       <div className={styles.loginSplitCard}>
         <div className={styles.loginBrandPanel}>
           <div className={styles.loginBrandHeader}>

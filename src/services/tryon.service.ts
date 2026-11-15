@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { config } from "@/lib/config";
-import { downloadResult, getTryonStatus, submitTryon } from "@/lib/ai/fashn";
+import { dataUrlToImage, downloadResult, getTryonStatus, submitTryon } from "@/lib/ai/fashn";
 import { newId } from "@/lib/security";
 import { getStore } from "@/lib/store";
 import type { TryonJob } from "@/types/domain";
@@ -125,7 +125,9 @@ export function refreshTryon(job: TryonJob): Promise<TryonJob> {
 
       const analysis = (await store.analysis(job.analysisId))!;
       const result =
-        status.output.kind === "url"
+        status.output.kind === "dataUrl"
+          ? dataUrlToImage(status.output.dataUrl)
+          : status.output.kind === "url"
           ? await downloadResult(status.output.url)
           : // Demo mode: no image is generated. Show the uploaded photo, labelled as a demo.
             (await store.photo(analysis.bodyPhotoId))!;

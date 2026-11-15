@@ -101,11 +101,17 @@ export function AdminOverviewSection({
   const grossRevenue =
     summary.financials?.grossRevenueIdr ??
     summary.transactions.totalRevenueIdr;
-  const grossProfit = summary.financials?.grossProfitIdr ?? 0;
-  const grossMargin = summary.financials?.grossMarginPercent ?? 0;
-  const midtransFee = summary.financials?.midtransFeeIdr ?? 0;
+  const midtransFee =
+    summary.financials?.midtransFeeIdr ?? Math.round(grossRevenue * 0.007);
   const geminiCost = summary.costs.geminiEstimatedIdr;
   const fashnCost = summary.costs.fashnActualIdr;
+  const totalCogs =
+    summary.financials?.totalCogsIdr ?? (midtransFee + geminiCost + fashnCost);
+  const grossProfit =
+    summary.financials?.grossProfitIdr ?? (grossRevenue - totalCogs);
+  const grossMargin =
+    summary.financials?.grossMarginPercent ??
+    (grossRevenue > 0 ? Math.round((grossProfit / grossRevenue) * 100) : 0);
 
   const maxBarValue = Math.max(
     grossRevenue,
@@ -136,11 +142,10 @@ export function AdminOverviewSection({
           </div>
           <div>
             <div className={`${styles.metricValue} ${styles.tabularNums}`}>
-              {formatIdr(summary.transactions.totalRevenueIdr)}
+              {formatIdr(grossRevenue)}
             </div>
             <div className={styles.metricSubtext}>
-              {summary.transactions.paidCount} dari{' '}
-              {summary.transactions.totalCount} transaksi lunas
+              {summary.transactions.paidCount} dari {summary.transactions.totalCount} transaksi lunas
             </div>
           </div>
         </div>

@@ -78,6 +78,18 @@ export function rowToProduct(r: Record<string, unknown>): Product {
     (typeof r.imagePath === "string" ? r.imagePath : null) ||
     "";
 
+  const bodyShapes = Array.isArray(rawLabels.body_shapes)
+    ? (rawLabels.body_shapes as string[])
+    : Array.isArray(rawLabels.silhouette)
+      ? (rawLabels.silhouette as string[])
+      : undefined;
+
+  const colorTones = Array.isArray(rawLabels.color_tones)
+    ? (rawLabels.color_tones as string[])
+    : Array.isArray(rawLabels.colors)
+      ? (rawLabels.colors as string[])
+      : undefined;
+
   return {
     id: String(r.id),
     name: typeof r.name === "string" ? r.name : "Produk",
@@ -90,9 +102,12 @@ export function rowToProduct(r: Record<string, unknown>): Product {
       (typeof r.sourceUrl === "string" ? r.sourceUrl : null) ||
       null,
     labels: {
+      ...rawLabels,
       colors,
       silhouette,
       fashnCategory,
+      body_shapes: bodyShapes,
+      color_tones: colorTones,
     },
     isActive: r.is_active !== false && r.isActive !== false,
     createdAt:

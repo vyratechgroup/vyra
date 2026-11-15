@@ -149,7 +149,7 @@ export function AdminDashboardView({
   const isPaused = Boolean(killSwitch?.paidWorkPaused);
 
   return (
-    <div className={styles.adminShell}>
+    <div className={styles.adminShell} data-lenis-prevent>
       {/* Mobile Backdrop */}
       {isMobileNavOpen && (
         <div
@@ -163,6 +163,7 @@ export function AdminDashboardView({
       <aside
         className={`${styles.sidebar} ${isMobileNavOpen ? styles.sidebarOpen : ''}`}
         aria-label="Navigasi Utama Admin"
+        data-lenis-prevent
       >
         <div className={styles.sidebarBrand}>
           <div className={styles.sidebarBrandLogo}>F</div>
@@ -289,7 +290,7 @@ export function AdminDashboardView({
         </header>
 
         {/* Dynamic Section Outlet */}
-        <main className={styles.mainCanvas}>
+        <main className={styles.mainCanvas} data-lenis-prevent>
           {activeSection === 'overview' && (
             <AdminOverviewSection
               summary={summary}

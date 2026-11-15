@@ -6,14 +6,21 @@ import { ProviderError } from "./errors";
 // Contract assumed from FASHN's v1 REST API; confirm the model and fields in the PoC
 // (decision tracker #4).
 
-type ImageInput = { bytes: Uint8Array; mime: string };
+export type ImageInput = { bytes: Uint8Array; mime: string };
 
 export type FashnStatus =
   | { state: "processing" }
-  | { state: "completed"; output: { kind: "url"; url: string } | { kind: "mock" } }
+  | { state: "completed"; output: { kind: "url"; url: string } | { kind: "dataUrl"; dataUrl: string } | { kind: "mock" } }
   | { state: "failed"; error: string };
 
-const toDataUrl = (img: ImageInput) => `data:${img.mime};base64,${Buffer.from(img.bytes).toString("base64")}`;
+export const toDataUrl = (img: ImageInput) => `data:${img.mime};base64,${Buffer.from(img.bytes).toString("base64")}`;
+
+export function dataUrlToImage(dataUrl: string): ImageInput {
+  const [header, b64] = dataUrl.split(",");
+  const mime = header?.split(";")[0]?.replace("data:", "") || "image/jpeg";
+  const bytes = new Uint8Array(Buffer.from(b64 ?? "", "base64"));
+  return { bytes, mime };
+}
 
 async function fashnFetch(path: string, init?: RequestInit) {
   const res = await fetch(`${config.fashn.baseUrl}${path}`, {
@@ -47,7 +54,13 @@ export async function submitTryon(args: {
         model_image: toDataUrl(args.person),
         garment_image: toDataUrl(args.garment),
         category: args.category,
+        mode: "quality",
+        output_format: "jpeg",
+        return_base64: true,
       },
+      mode: "quality",
+      output_format: "jpeg",
+      return_base64: true,
     }),
   });
   if (!body?.id) throw new ProviderError(`FASHN returned no job id: ${JSON.stringify(body)}`, true);
@@ -63,10 +76,14 @@ export async function getTryonStatus(providerJobId: string): Promise<FashnStatus
   const body = await fashnFetch(`/status/${encodeURIComponent(providerJobId)}`);
   switch (body?.status) {
     case "completed": {
-      const url = body.output?.[0];
-      return url
-        ? { state: "completed", output: { kind: "url", url } }
-        : { state: "failed", error: "FASHN completed without output" };
+      const output = body.output?.[0];
+      if (!output) {
+        return { state: "failed", error: "FASHN completed without output" };
+      }
+      if (output.startsWith("data:")) {
+        return { state: "completed", output: { kind: "dataUrl", dataUrl: output } };
+      }
+      return { state: "completed", output: { kind: "url", url: output } };
     }
     case "failed":
     case "canceled":
@@ -76,9 +93,12 @@ export async function getTryonStatus(providerJobId: string): Promise<FashnStatus
   }
 }
 
-/** Downloads FASHN's result so it lives in our private storage, not on FASHN's CDN. */
-export async function downloadResult(url: string): Promise<ImageInput> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+/** Downloads FASHN's result so it lives in our private storage, not on FASHN's CDN. Also decodes base64 data URIs. */
+export async function downloadResult(urlOrDataUri: string): Promise<ImageInput> {
+  if (urlOrDataUri.startsWith("data:")) {
+    return dataUrlToImage(urlOrDataUri);
+  }
+  const res = await fetch(urlOrDataUri, { signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new ProviderError(`Could not download FASHN result: ${res.status}`, true);
   return { bytes: new Uint8Array(await res.arrayBuffer()), mime: res.headers.get("content-type") ?? "image/png" };
 }

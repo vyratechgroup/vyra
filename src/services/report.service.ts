@@ -33,7 +33,12 @@ export async function getReport(secret: string): Promise<ReportView> {
   if (analysis.status !== "completed" || !analysis.personalColor || !analysis.bodyShape) {
     return { state: "pending", status: analysis.status };
   }
-  if (!analysis.reportExpiresAt || Date.parse(analysis.reportExpiresAt) <= Date.now()) {
+  const fallbackBase = analysis.completedAt || analysis.createdAt || new Date().toISOString();
+  const expiresAtMs = analysis.reportExpiresAt
+    ? Date.parse(analysis.reportExpiresAt)
+    : Date.parse(fallbackBase) + 72 * 3600 * 1000;
+
+  if (Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()) {
     await store.deletePhotos([analysis.facePhotoId, analysis.bodyPhotoId]);
     return { state: "expired" };
   }
@@ -48,16 +53,19 @@ export async function getReport(secret: string): Promise<ReportView> {
 
   let tryon: Extract<ReportView, { state: "ready" }>["tryon"] = null;
   if (job && product) {
+    const tryonPhotoId = result?.id || job.resultPhotoId || null;
     tryon =
       job.status === "completed"
         ? {
             status: "completed",
             productName: product.name,
             productImage: product.imagePath,
-            imageUrl: result ? signedMediaUrl(result.id) : null,
+            imageUrl: tryonPhotoId ? signedMediaUrl(tryonPhotoId) : null,
           }
         : { status: job.status, productName: product.name };
   }
+
+  const facePhotoId = face?.id || analysis.facePhotoId || null;
 
   return {
     state: "ready",
@@ -65,10 +73,10 @@ export async function getReport(secret: string): Promise<ReportView> {
       ...(job?.provider === "mock" ? ["gambar try-on adalah foto aslimu tanpa pakaian baru"] : []),
     ],
     createdAt: analysis.completedAt ?? analysis.createdAt,
-    expiresAt: analysis.reportExpiresAt,
+    expiresAt: analysis.reportExpiresAt || new Date(expiresAtMs).toISOString(),
     personalColor: analysis.personalColor,
     bodyShape: analysis.bodyShape,
-    facePhotoUrl: face ? signedMediaUrl(face.id) : null,
+    facePhotoUrl: facePhotoId ? signedMediaUrl(facePhotoId) : null,
     tryon,
   };
 }

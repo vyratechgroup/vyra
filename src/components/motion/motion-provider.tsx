@@ -1,23 +1,42 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { MotionConfig } from "motion/react";
 import Lenis from "lenis";
 import "lenis/dist/lenis.css";
+
+function LenisController() {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    // ponytail: excludes all /admin routes by prefix; upgrade to route-level motion layout if granular admin smooth-scroll is ever needed.
+    if (pathname?.startsWith("/admin")) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const lenis = new Lenis({ autoRaf: true, lerp: 0.13, anchors: { offset: -72 } });
+    return () => lenis.destroy();
+  }, [pathname]);
+
+  useEffect(() => {
+    if (pathname?.startsWith("/admin")) return;
+    return pauseOffscreenAnimations();
+  }, [pathname]);
+
+  return null;
+}
 
 // Honors the visitor's OS "reduce motion" setting for every motion component, and adds
 // inertial smooth scrolling (Lenis) for everyone else. Lenis drives the native scroll
 // position, so Motion's useScroll keeps working unchanged.
 export function MotionProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const lenis = new Lenis({ autoRaf: true, lerp: 0.13, anchors: { offset: -72 } });
-    return () => lenis.destroy();
-  }, []);
-
-  useEffect(() => pauseOffscreenAnimations(), []);
-
-  return <MotionConfig reducedMotion="user">{children}</MotionConfig>;
+  return (
+    <MotionConfig reducedMotion="user">
+      <Suspense fallback={null}>
+        <LenisController />
+      </Suspense>
+      {children}
+    </MotionConfig>
+  );
 }
 
 // The landing page has dozens of looping animations. The browser keeps running them

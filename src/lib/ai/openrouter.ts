@@ -22,6 +22,10 @@ export async function chatJson(args: {
   schemaName: string;
   schema: Record<string, unknown>;
 }): Promise<{ content: string; run: ModelRun }> {
+  if (!config.openrouter.apiKey && config.openrouter.geminiApiKey) {
+    return await chatJsonGeminiDirect(args);
+  }
+
   const dataUrl = `data:${args.image.mime};base64,${Buffer.from(args.image.bytes).toString("base64")}`;
 
   let res: Response;
@@ -83,6 +87,76 @@ export async function chatJson(args: {
       costUsd: typeof body.usage?.cost === "number" ? body.usage.cost : null,
       inputTokens: body.usage?.prompt_tokens ?? null,
       outputTokens: body.usage?.completion_tokens ?? null,
+      attempts: 1,
+    },
+  };
+}
+
+async function chatJsonGeminiDirect(args: {
+  prompt: string;
+  image: ImageInput;
+  schemaName: string;
+  schema: Record<string, unknown>;
+}): Promise<{ content: string; run: ModelRun }> {
+  const base64Data = Buffer.from(args.image.bytes).toString("base64");
+  const model = "gemini-flash-lite-latest";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.openrouter.geminiApiKey}`;
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                inline_data: {
+                  mime_type: args.image.mime,
+                  data: base64Data,
+                },
+              },
+              {
+                text: `${args.prompt}\n\nRespond strictly with a JSON object adhering to this schema: ${JSON.stringify(args.schema)}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          response_mime_type: "application/json",
+          temperature: 0.2,
+        },
+      }),
+      signal: AbortSignal.timeout(90_000),
+    });
+  } catch (err) {
+    throw new ProviderError(`Gemini request failed: ${String(err)}`, true);
+  }
+
+  const body = await res.json().catch(() => null);
+  if (!res.ok || body?.error) {
+    const status = body?.error?.code ?? res.status;
+    const retryable =
+      res.status >= 500 || res.status === 429 || res.status === 408;
+    throw new ProviderError(
+      `Gemini ${status}: ${body?.error?.message ?? res.statusText}`,
+      retryable,
+    );
+  }
+
+  const textPart = body?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (typeof textPart !== "string" || !textPart.trim()) {
+    throw new ProviderError("Gemini returned an empty response", true);
+  }
+
+  return {
+    content: stripFences(textPart),
+    run: {
+      model: `google/${model}`,
+      costUsd: null,
+      inputTokens: body.usageMetadata?.promptTokenCount ?? null,
+      outputTokens: body.usageMetadata?.candidatesTokenCount ?? null,
       attempts: 1,
     },
   };

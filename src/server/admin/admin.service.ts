@@ -48,6 +48,7 @@ export interface AdminTokenItem {
 export interface AdminJobItem {
   id: string;
   tokenId: string;
+  orderReference?: string | null;
   type: 'analysis' | 'virtual_try_on';
   status: string;
   provider: string;
@@ -56,6 +57,17 @@ export interface AdminJobItem {
   tokenRecoveryStatus: string;
   durationMs: number | null;
   error: string | null;
+  analysisDetails?: {
+    personalColor?: {
+      season: string;
+      subSeason?: string | null;
+      confidence?: string | null;
+    } | null;
+    bodyShape?: {
+      category: string;
+      confidence?: string | null;
+    } | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -529,6 +541,17 @@ interface InMemoryJobItem {
   attemptCount: number;
   tokenRecoveryStatus: string;
   error: string | null;
+  result?: {
+    personal_color?: {
+      primary_season?: string;
+      sub_season?: string | null;
+      confidence_level?: string | null;
+    };
+    body_shape?: {
+      category?: string;
+      confidence_level?: string | null;
+    };
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -598,23 +621,59 @@ export function createInMemoryAdminDataRepository(): AdminRepository {
     },
 
     async listJobs() {
+      const tokensList = Array.from(state.tokensByHash.values());
+      const tokenIdToOrderRef = new Map<string, string>();
+      for (const tok of tokensList) {
+        if (tok.paymentId) {
+          const payment = state.paymentsById.get(tok.paymentId) as
+            | InMemoryPaymentItem
+            | undefined;
+          if (payment?.providerReference) {
+            tokenIdToOrderRef.set(tok.id, payment.providerReference);
+          }
+        }
+      }
+
       const rawAnalysisJobs = Array.from(
         state.analysisJobsById.values(),
       ) as InMemoryJobItem[];
-      const analysisJobs: AdminJobItem[] = rawAnalysisJobs.map((job) => ({
-        id: job.id,
-        tokenId: job.tokenId,
-        type: 'analysis',
-        status: job.status,
-        provider: job.provider,
-        providerReference: job.providerReference,
-        attemptCount: job.attemptCount,
-        tokenRecoveryStatus: job.tokenRecoveryStatus,
-        durationMs: computeDurationMs(job.createdAt, job.updatedAt),
-        error: job.error,
-        createdAt: job.createdAt,
-        updatedAt: job.updatedAt,
-      }));
+      const analysisJobs: AdminJobItem[] = rawAnalysisJobs.map((job) => {
+        const analysisDetails = job.result
+          ? {
+              personalColor: job.result.personal_color
+                ? {
+                    season: job.result.personal_color.primary_season ?? 'unknown',
+                    subSeason: job.result.personal_color.sub_season ?? null,
+                    confidence:
+                      job.result.personal_color.confidence_level ?? null,
+                  }
+                : null,
+              bodyShape: job.result.body_shape
+                ? {
+                    category: job.result.body_shape.category ?? 'unknown',
+                    confidence: job.result.body_shape.confidence_level ?? null,
+                  }
+                : null,
+            }
+          : null;
+
+        return {
+          id: job.id,
+          tokenId: job.tokenId,
+          orderReference: tokenIdToOrderRef.get(job.tokenId) ?? null,
+          type: 'analysis',
+          status: job.status,
+          provider: job.provider,
+          providerReference: job.providerReference,
+          attemptCount: job.attemptCount,
+          tokenRecoveryStatus: job.tokenRecoveryStatus,
+          durationMs: computeDurationMs(job.createdAt, job.updatedAt),
+          error: job.error,
+          analysisDetails,
+          createdAt: job.createdAt,
+          updatedAt: job.updatedAt,
+        };
+      });
 
       const rawVtoJobs = Array.from(
         state.vtoJobsById.values(),
@@ -622,6 +681,7 @@ export function createInMemoryAdminDataRepository(): AdminRepository {
       const vtoJobs: AdminJobItem[] = rawVtoJobs.map((job) => ({
         id: job.id,
         tokenId: job.tokenId,
+        orderReference: tokenIdToOrderRef.get(job.tokenId) ?? null,
         type: 'virtual_try_on',
         status: job.status,
         provider: job.provider,
@@ -630,6 +690,7 @@ export function createInMemoryAdminDataRepository(): AdminRepository {
         tokenRecoveryStatus: job.tokenRecoveryStatus,
         durationMs: computeDurationMs(job.createdAt, job.updatedAt),
         error: job.error,
+        analysisDetails: null,
         createdAt: job.createdAt,
         updatedAt: job.updatedAt,
       }));
@@ -865,22 +926,70 @@ export function createSupabaseAdminRepository(): AdminRepository {
     },
 
     async listJobs() {
-      const { data, error } = await client
-        .from('jobs')
-        .select(
-          'id, token_id, type, status, provider, provider_reference, attempt_count, token_recovery_status, error, created_at, updated_at',
-        )
-        .order('created_at', { ascending: false })
-        .limit(200);
+      const [jobsRes, tokensRes, paymentsRes] = await Promise.all([
+        client
+          .from('jobs')
+          .select(
+            'id, token_id, type, status, provider, provider_reference, attempt_count, token_recovery_status, error, result, created_at, updated_at',
+          )
+          .order('created_at', { ascending: false })
+          .limit(200),
+        client.from('tokens').select('id, payment_id').limit(500),
+        client.from('payments').select('id, provider_reference').limit(500),
+      ]);
 
-      if (error) throw error;
+      if (jobsRes.error) throw jobsRes.error;
 
-      return (data ?? []).map((row) => {
+      const paymentIdToOrderRef = new Map<string, string>();
+      for (const p of paymentsRes.data ?? []) {
+        if (p.provider_reference) {
+          paymentIdToOrderRef.set(String(p.id), String(p.provider_reference));
+        }
+      }
+
+      const tokenIdToOrderRef = new Map<string, string>();
+      for (const tok of tokensRes.data ?? []) {
+        if (tok.payment_id && paymentIdToOrderRef.has(String(tok.payment_id))) {
+          tokenIdToOrderRef.set(
+            String(tok.id),
+            paymentIdToOrderRef.get(String(tok.payment_id))!,
+          );
+        }
+      }
+
+      return (jobsRes.data ?? []).map((row) => {
         const createdAt = String(row.created_at);
         const updatedAt = String(row.updated_at);
+        const resultObj = (row.result as Record<string, unknown> | null) ?? null;
+        const pc = resultObj?.personal_color as
+          | Record<string, unknown>
+          | undefined;
+        const bs = resultObj?.body_shape as
+          | Record<string, unknown>
+          | undefined;
+
+        const analysisDetails = resultObj
+          ? {
+              personalColor: pc
+                ? {
+                    season: String(pc.primary_season ?? 'unknown'),
+                    subSeason: (pc.sub_season as string | null) ?? null,
+                    confidence: (pc.confidence_level as string | null) ?? null,
+                  }
+                : null,
+              bodyShape: bs
+                ? {
+                    category: String(bs.category ?? 'unknown'),
+                    confidence: (bs.confidence_level as string | null) ?? null,
+                  }
+                : null,
+            }
+          : null;
+
         return {
           id: String(row.id),
           tokenId: String(row.token_id),
+          orderReference: tokenIdToOrderRef.get(String(row.token_id)) ?? null,
           type: row.type as 'analysis' | 'virtual_try_on',
           status: String(row.status),
           provider: String(row.provider ?? 'unknown'),
@@ -889,6 +998,7 @@ export function createSupabaseAdminRepository(): AdminRepository {
           tokenRecoveryStatus: String(row.token_recovery_status ?? 'none'),
           durationMs: computeDurationMs(createdAt, updatedAt),
           error: (row.error as string | null) ?? null,
+          analysisDetails,
           createdAt,
           updatedAt,
         };

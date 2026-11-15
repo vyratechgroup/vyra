@@ -53,11 +53,14 @@ export const config = {
   // photos stay with the processors named in the privacy notice.
   openrouter: {
     get mode() {
-      const mode = providerMode(env.OPENROUTER_API_KEY?.trim());
+      const mode = providerMode(
+        env.OPENROUTER_API_KEY?.trim() || env.GEMINI_API_KEY?.trim(),
+      );
       // ponytail: fallback to mock in demo/trial mode so flow is testable without paid API key
       return mode === "missing" && env.FREE_CHECKOUT === "true" ? "mock" : mode;
     },
     apiKey: env.OPENROUTER_API_KEY?.trim(),
+    geminiApiKey: env.GEMINI_API_KEY?.trim(),
     baseUrl: "https://openrouter.ai/api/v1",
     model: env.OPENROUTER_MODEL?.trim() || "google/gemini-3.8-flash",
     fallbackModels: (env.OPENROUTER_FALLBACK_MODELS ?? "google/gemini-3.7-flash")

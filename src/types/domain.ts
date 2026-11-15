@@ -88,7 +88,15 @@ export type Product = {
   /** Path under /public for the seed catalog; a storage path once Supabase is wired. */
   imagePath: string;
   sourceUrl: string | null;
-  labels: { colors: string[]; silhouette: string[]; fashnCategory: "tops" | "bottoms" | "one-pieces" };
+  labels: {
+    colors: string[];
+    silhouette: string[];
+    fashnCategory: "tops" | "bottoms" | "one-pieces";
+    body_shapes?: string[];
+    color_tones?: string[];
+    gender?: string;
+    [key: string]: unknown;
+  };
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

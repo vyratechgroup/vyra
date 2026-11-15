@@ -83,6 +83,13 @@ function toToken(r: Row, meta?: any): Token {
 function toAnalysis(r: Row, meta?: any): Analysis {
   const input = (r.input as Record<string, unknown>) ?? {};
   const res = (r.result as Record<string, unknown>) ?? {};
+  const defaultExpiresAt =
+    r.status === 'completed'
+      ? new Date(
+          Date.parse((r.updated_at as string) || (r.created_at as string) || new Date().toISOString()) +
+            72 * 3600 * 1000,
+        ).toISOString()
+      : null;
   return {
     id: meta?.rawId || (r.id as string),
     tokenId: meta?.rawTokenId || (r.token_id as string),
@@ -96,7 +103,12 @@ function toAnalysis(r: Row, meta?: any): Analysis {
     modelMetadata: (r.model_metadata as Analysis['modelMetadata']) ?? null,
     error: (r.error as string) ?? null,
     reportSecretHash: meta?.reportSecretHash || (input.reportSecretHash as string) || (r.report_secret_hash as string) || '',
-    reportExpiresAt: (r.report_expires_at as string) ?? null,
+    reportExpiresAt:
+      meta?.reportExpiresAt ||
+      (r.report_expires_at as string) ||
+      (input.reportExpiresAt as string) ||
+      (res.reportExpiresAt as string) ||
+      defaultExpiresAt,
     createdAt: (r.created_at as string) || new Date().toISOString(),
     completedAt: r.status === 'completed' ? (r.updated_at as string) : null,
   };
@@ -104,6 +116,7 @@ function toAnalysis(r: Row, meta?: any): Analysis {
 
 function toJob(r: Row, meta?: any): TryonJob {
   const input = (r.input as Record<string, unknown>) ?? {};
+  const res = (r.result as Record<string, unknown>) ?? {};
   return {
     id: meta?.rawId || (r.id as string),
     analysisId: meta?.rawAnalysisId || (input.analysisId as string) || '',
@@ -112,7 +125,12 @@ function toJob(r: Row, meta?: any): TryonJob {
     provider: (r.provider as TryonJob['provider']) || 'fashn',
     providerJobId: (r.provider_reference as string) || null,
     status: (r.status as TryonJob['status']) || 'queued',
-    resultPhotoId: (r.result_path as string) || null,
+    resultPhotoId:
+      (res.resultPhotoId as string) ||
+      (res.result_path as string) ||
+      (meta?.resultPhotoId as string) ||
+      (r.result_path as string) ||
+      null,
     attempts: Number(r.attempt_count ?? 1),
     error: (r.error as string) ?? null,
     createdAt: (r.created_at as string) || new Date().toISOString(),
@@ -361,8 +379,11 @@ export function createSupabaseStore(urlOrClient: string | SupabaseClient, secret
       if (report) {
         const { data: row } = await db.from('jobs').select().eq('token_id', report.token_id).eq('type', 'analysis').maybeSingle();
         if (row) {
-          const meta = await getSetting(db, `analysis_meta:${row.id}`);
-          return toAnalysis(row, meta);
+          const meta = (await getSetting<Record<string, unknown>>(db, `analysis_meta:${row.id}`)) || {};
+          return toAnalysis(row, {
+            ...meta,
+            reportExpiresAt: meta.reportExpiresAt || report.expires_at || null,
+          });
         }
       }
       return null;
@@ -385,19 +406,24 @@ export function createSupabaseStore(urlOrClient: string | SupabaseClient, secret
       if (patch.error !== undefined) dbPatch.error = patch.error;
       if (patch.modelMetadata !== undefined) dbPatch.model_metadata = patch.modelMetadata;
 
-      if (patch.personalColor !== undefined || patch.bodyShape !== undefined) {
+      if (patch.personalColor !== undefined || patch.bodyShape !== undefined || patch.reportExpiresAt !== undefined) {
         const { data: current } = await db.from('jobs').select('result').eq('id', uuid).maybeSingle();
         const currRes = (current?.result as Record<string, unknown>) ?? {};
         dbPatch.result = {
           ...currRes,
           ...(patch.personalColor !== undefined ? { personalColor: patch.personalColor } : {}),
           ...(patch.bodyShape !== undefined ? { bodyShape: patch.bodyShape } : {}),
+          ...(patch.reportExpiresAt !== undefined ? { reportExpiresAt: patch.reportExpiresAt } : {}),
         };
       }
 
       const { data: updated } = await db.from('jobs').update(dbPatch).eq('id', uuid).select().maybeSingle();
       if (!updated) return null;
-      const meta = await getSetting(db, `analysis_meta:${updated.id}`);
+      let meta = (await getSetting<Record<string, unknown>>(db, `analysis_meta:${updated.id}`)) || {};
+      if (patch.reportExpiresAt) {
+        meta = { ...meta, reportExpiresAt: patch.reportExpiresAt };
+        await setSetting(db, `analysis_meta:${updated.id}`, meta);
+      }
       return toAnalysis(updated, meta);
     },
 
@@ -482,12 +508,26 @@ export function createSupabaseStore(urlOrClient: string | SupabaseClient, secret
 
       if (patch.status) dbPatch.status = patch.status;
       if (patch.providerJobId !== undefined) dbPatch.provider_reference = patch.providerJobId;
-      if (patch.resultPhotoId !== undefined) dbPatch.result_path = patch.resultPhotoId;
       if (patch.error !== undefined) dbPatch.error = patch.error;
       if (patch.attempts !== undefined) dbPatch.attempt_count = patch.attempts;
+      if (patch.resultPhotoId !== undefined) {
+        dbPatch.result = {
+          resultPhotoId: patch.resultPhotoId,
+          result_path: patch.resultPhotoId,
+        };
+      }
 
-      const { data: updated } = await db.from('jobs').update(dbPatch).eq('id', uuid).select().maybeSingle();
-      if (!updated) return null;
+      const { data: updated, error } = await db.from('jobs').update(dbPatch).eq('id', uuid).select().maybeSingle();
+      if (error || !updated) {
+        console.error('[SupabaseStore] updateTryonJob error:', error);
+        return null;
+      }
+
+      if (patch.resultPhotoId !== undefined) {
+        const existingMeta = (await getSetting<Record<string, unknown>>(db, `tryon_meta:${uuid}`)) || {};
+        await setSetting(db, `tryon_meta:${uuid}`, { ...existingMeta, resultPhotoId: patch.resultPhotoId });
+      }
+
       const meta = await getSetting(db, `tryon_meta:${updated.id}`);
       return toJob(updated, meta);
     },
@@ -516,6 +556,7 @@ export function createSupabaseStore(urlOrClient: string | SupabaseClient, secret
       });
 
       await setSetting(db, `photo_meta:${uuid}`, {
+        id: p.id,
         rawId: p.id,
         kind: p.kind,
         mime: p.mime,
@@ -538,14 +579,20 @@ export function createSupabaseStore(urlOrClient: string | SupabaseClient, secret
 
     async photoMeta(id) {
       const uuid = toUuid(id);
-      const meta = await getSetting<PhotoMeta>(db, `photo_meta:${uuid}`);
-      if (meta) return meta;
+      const meta = await getSetting<PhotoMeta & { rawId?: string }>(db, `photo_meta:${uuid}`);
+      if (meta) {
+        return {
+          ...meta,
+          id: meta.id || meta.rawId || id,
+          kind: meta.kind || 'face',
+        };
+      }
 
       const { data: row } = await db.from('photo_assets').select().eq('id', uuid).maybeSingle();
       if (!row) return null;
       return {
         id,
-        kind: row.photo_kind === 'full_body' ? 'body' : 'face',
+        kind: row.photo_kind === 'full_body' ? 'body' : row.photo_kind === 'vto_result' ? 'tryon' : 'face',
         mime: (row.mime_type as string) || 'image/jpeg',
         width: Number(row.width ?? 512),
         height: Number(row.height ?? 512),

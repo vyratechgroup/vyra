@@ -330,26 +330,188 @@ export function AdminTransactionsSection({
 // ==========================================================================
 // 2. AdminJobsSection
 // ==========================================================================
+interface DisplayJobRow {
+  rowKey: string;
+  jobId: string;
+  orderReference: string | null;
+  dateStr: string;
+  jobType: string;
+  provider: string;
+  providerRef: string | null;
+  status: string;
+  attemptCount: number;
+  tokenRecovery: string;
+  durationMs: number | null | undefined;
+  details: string;
+  isError: boolean;
+  rowSpan?: number;
+  isGroupFirst?: boolean;
+}
+
 export function AdminJobsSection({ jobs }: AdminJobsSectionProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [providerFilter, setProviderFilter] = useState<'all' | 'gemini' | 'fashn'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'failed' | 'processing'>('all');
 
-  const filteredJobs = useMemo(() => {
+  const processedRows = useMemo(() => {
+    // 1. Expand analysis jobs with Gemini breakdown if available
+    type ExpandedItem = {
+      orderRef: string;
+      jobId: string;
+      createdAt: string;
+      typeLabel: string;
+      provider: string;
+      providerRef: string | null;
+      status: string;
+      attemptCount: number;
+      tokenRecovery: string;
+      durationMs: number | null | undefined;
+      details: string;
+      isError: boolean;
+    };
+
+    const expandedList: ExpandedItem[] = [];
+
+    for (const job of jobs) {
+      const orderRef = job.orderReference || 'Tanpa Order Ref';
+      if (job.type === 'analysis' && job.analysisDetails) {
+        // If Gemini analysis details exist, render breakdown rows
+        if (job.analysisDetails.personalColor) {
+          expandedList.push({
+            orderRef,
+            jobId: job.id,
+            createdAt: job.createdAt,
+            typeLabel: 'Color Tone (Wajah)',
+            provider: job.provider,
+            providerRef: job.providerReference,
+            status: job.status,
+            attemptCount: job.attemptCount,
+            tokenRecovery: job.tokenRecoveryStatus,
+            durationMs: job.durationMs,
+            details: `Season: ${job.analysisDetails.personalColor.season}${
+              job.analysisDetails.personalColor.subSeason
+                ? ` (${job.analysisDetails.personalColor.subSeason})`
+                : ''
+            }${
+              job.analysisDetails.personalColor.confidence
+                ? ` • Conf: ${job.analysisDetails.personalColor.confidence}`
+                : ''
+            }`,
+            isError: false,
+          });
+        }
+        if (job.analysisDetails.bodyShape) {
+          expandedList.push({
+            orderRef,
+            jobId: job.id,
+            createdAt: job.createdAt,
+            typeLabel: 'Body Shape (Tubuh)',
+            provider: job.provider,
+            providerRef: job.providerReference,
+            status: job.status,
+            attemptCount: job.attemptCount,
+            tokenRecovery: job.tokenRecoveryStatus,
+            durationMs: job.durationMs,
+            details: `Shape: ${job.analysisDetails.bodyShape.category}${
+              job.analysisDetails.bodyShape.confidence
+                ? ` • Conf: ${job.analysisDetails.bodyShape.confidence}`
+                : ''
+            }`,
+            isError: false,
+          });
+        }
+        // If neither was populated (edge case)
+        if (!job.analysisDetails.personalColor && !job.analysisDetails.bodyShape) {
+          expandedList.push({
+            orderRef,
+            jobId: job.id,
+            createdAt: job.createdAt,
+            typeLabel: 'Gemini Analysis',
+            provider: job.provider,
+            providerRef: job.providerReference,
+            status: job.status,
+            attemptCount: job.attemptCount,
+            tokenRecovery: job.tokenRecoveryStatus,
+            durationMs: job.durationMs,
+            details: job.error ?? '—',
+            isError: Boolean(job.error),
+          });
+        }
+      } else {
+        // VTO or regular analysis without details
+        const typeLabel =
+          job.type === 'virtual_try_on'
+            ? 'Virtual Try-On'
+            : 'Analisis Multimodal';
+        expandedList.push({
+          orderRef,
+          jobId: job.id,
+          createdAt: job.createdAt,
+          typeLabel,
+          provider: job.provider,
+          providerRef: job.providerReference,
+          status: job.status,
+          attemptCount: job.attemptCount,
+          tokenRecovery: job.tokenRecoveryStatus,
+          durationMs: job.durationMs,
+          details: job.error ?? '—',
+          isError: Boolean(job.error),
+        });
+      }
+    }
+
+    // 2. Filter by search, provider, and status
     const q = searchTerm.trim().toLowerCase();
-    return jobs.filter((job) => {
-      if (providerFilter !== 'all' && job.provider.toLowerCase() !== providerFilter) {
+    const filtered = expandedList.filter((item) => {
+      if (
+        providerFilter !== 'all' &&
+        item.provider.toLowerCase() !== providerFilter
+      ) {
         return false;
       }
-      if (statusFilter !== 'all' && job.status.toLowerCase() !== statusFilter) {
+      if (statusFilter !== 'all' && item.status.toLowerCase() !== statusFilter) {
         return false;
       }
       if (!q) return true;
-      const haystack = `${job.id} ${job.type} ${job.provider} ${
-        job.providerReference ?? ''
-      } ${job.tokenId} ${job.status} ${job.error ?? ''}`.toLowerCase();
+      const haystack = `${item.orderRef} ${item.jobId} ${item.typeLabel} ${
+        item.provider
+      } ${item.providerRef ?? ''} ${item.status} ${item.details}`.toLowerCase();
       return haystack.includes(q);
     });
+
+    // 3. Group by orderRef to compute rowSpan for merging order reference cells
+    const groups = new Map<string, ExpandedItem[]>();
+    for (const item of filtered) {
+      if (!groups.has(item.orderRef)) {
+        groups.set(item.orderRef, []);
+      }
+      groups.get(item.orderRef)!.push(item);
+    }
+
+    const rows: DisplayJobRow[] = [];
+    for (const [orderRef, items] of groups.entries()) {
+      items.forEach((item, index) => {
+        rows.push({
+          rowKey: `${item.jobId}-${item.typeLabel}-${index}`,
+          jobId: item.jobId,
+          orderReference: orderRef === 'Tanpa Order Ref' ? null : orderRef,
+          dateStr: item.createdAt,
+          jobType: item.typeLabel,
+          provider: item.provider,
+          providerRef: item.providerRef,
+          status: item.status,
+          attemptCount: item.attemptCount,
+          tokenRecovery: item.tokenRecovery,
+          durationMs: item.durationMs,
+          details: item.details,
+          isError: item.isError,
+          rowSpan: index === 0 ? items.length : undefined,
+          isGroupFirst: index === 0,
+        });
+      });
+    }
+
+    return rows;
   }, [jobs, searchTerm, providerFilter, statusFilter]);
 
   return (
@@ -423,38 +585,56 @@ export function AdminJobsSection({ jobs }: AdminJobsSectionProps) {
               Pemantauan performa inferensi Gemini dan generasi visual FASHN
             </p>
           </div>
-          <span className={styles.badge}>{filteredJobs.length} Jobs</span>
+          <span className={styles.badge}>{processedRows.length} Entri Analisis</span>
         </div>
 
         <table className={styles.dataTable} aria-label="Tabel Job Monitoring">
           <thead>
             <tr>
-              <th scope="col" className={styles.tableHeaderCell}>Job ID</th>
-              <th scope="col" className={styles.tableHeaderCell}>Tipe / Provider</th>
-              <th scope="col" className={styles.tableHeaderCell}>Provider Ref</th>
+              <th scope="col" className={styles.tableHeaderCell}>Order Reference</th>
+              <th scope="col" className={styles.tableHeaderCell}>Tanggal</th>
+              <th scope="col" className={styles.tableHeaderCell}>Komponen / Provider</th>
+              <th scope="col" className={styles.tableHeaderCell}>Job / Provider Ref</th>
               <th scope="col" className={styles.tableHeaderCell}>Status</th>
               <th scope="col" className={styles.tableHeaderCell}>Percobaan</th>
               <th scope="col" className={styles.tableHeaderCell}>Token Recovery</th>
               <th scope="col" className={styles.tableHeaderCell}>Durasi</th>
-              <th scope="col" className={styles.tableHeaderCell}>Error / Info</th>
+              <th scope="col" className={styles.tableHeaderCell}>Hasil / Info</th>
             </tr>
           </thead>
           <tbody>
-            {filteredJobs.length > 0 ? (
-              filteredJobs.map((job) => (
-                <tr key={job.id}>
-                  <td
-                    className={styles.tableCell}
-                    style={{
-                      fontFamily: 'var(--font-mono, monospace)',
-                      fontWeight: 600,
-                    }}
-                  >
-                    #{job.id.slice(0, 10)}
+            {processedRows.length > 0 ? (
+              processedRows.map((row) => (
+                <tr key={row.rowKey}>
+                  {row.isGroupFirst ? (
+                    <td
+                      rowSpan={row.rowSpan}
+                      className={styles.tableCell}
+                      style={{
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontWeight: 700,
+                        backgroundColor: 'var(--admin-bg-base, rgba(255,255,255,0.02))',
+                        borderRight: '1px solid var(--admin-border-subtle)',
+                        verticalAlign: 'top',
+                      }}
+                    >
+                      {row.orderReference ? (
+                        <span style={{ color: 'var(--admin-accent-primary, #6366F1)' }}>
+                          {row.orderReference}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>
+                          Tanpa Order
+                        </span>
+                      )}
+                    </td>
+                  ) : null}
+                  <td className={styles.tableCell} style={{ whiteSpace: 'nowrap', fontSize: '0.85rem' }}>
+                    {formatDateTime(row.dateStr)}
                   </td>
                   <td className={styles.tableCell}>
-                    <span style={{ fontWeight: 600 }}>{job.type}</span> (
-                    {job.provider})
+                    <div style={{ fontWeight: 600 }}>{row.jobType}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>{row.provider}</div>
                   </td>
                   <td
                     className={styles.tableCell}
@@ -464,53 +644,55 @@ export function AdminJobsSection({ jobs }: AdminJobsSectionProps) {
                       color: '#64748B',
                     }}
                   >
-                    {job.providerReference ?? '—'}
+                    <div>#{row.jobId.length > 10 ? row.jobId.slice(0, 10) : row.jobId}</div>
+                    {row.providerRef ? <div>{row.providerRef}</div> : null}
                   </td>
                   <td className={styles.tableCell}>
                     <span
                       className={`${styles.badge} ${getStatusBadgeClass(
-                        job.status,
+                        row.status,
                       )}`}
                     >
-                      {job.status}
+                      {row.status}
                     </span>
                   </td>
                   <td
                     className={`${styles.tableCell} ${styles.tabularNums}`}
                     style={{ textAlign: 'center' }}
                   >
-                    {job.attemptCount}
+                    {row.attemptCount}
                   </td>
                   <td className={styles.tableCell}>
                     <span
                       className={`${styles.badge} ${
-                        job.tokenRecoveryStatus === 'recovered'
+                        row.tokenRecovery === 'recovered'
                           ? styles.badgeSuccess
                           : styles.badgeInfo
                       }`}
                     >
-                      {job.tokenRecoveryStatus}
+                      {row.tokenRecovery}
                     </span>
                   </td>
                   <td className={`${styles.tableCell} ${styles.tabularNums}`}>
-                    {formatDurationMs(job.durationMs)}
+                    {formatDurationMs(row.durationMs)}
                   </td>
                   <td
                     className={styles.tableCell}
                     style={{
-                      maxWidth: '260px',
-                      color: job.error ? 'var(--admin-danger)' : '#64748B',
+                      maxWidth: '280px',
+                      color: row.isError ? 'var(--admin-danger)' : '#E2E8F0',
                       fontSize: '0.8rem',
+                      wordBreak: 'break-word',
                     }}
                   >
-                    {job.error ?? '—'}
+                    {row.details}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className={styles.tableCell}
                   style={{ textAlign: 'center', color: '#64748B', padding: '2rem 1rem' }}
                 >
