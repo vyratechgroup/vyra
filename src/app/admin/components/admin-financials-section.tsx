@@ -347,7 +347,7 @@ export function AdminFinancialsSection({
                     <td
                       colSpan={8}
                       className={styles.tableCell}
-                      style={{ textAlign: 'center', color: '#64748B', padding: '2rem 1rem' }}
+                      style={{ textAlign: 'center', color: '#415A77', padding: '2rem 1rem' }}
                     >
                       Tidak ada transaksi pada periode ini.
                     </td>
@@ -474,7 +474,7 @@ export function AdminFinancialsSection({
                       </td>
                       <td className={styles.tableCell}>
                         <div>{ev.feature}</div>
-                        <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#415A77' }}>
                           {ev.feature === 'personal_color'
                             ? 'Analisis Wajah'
                             : ev.feature === 'body_shape'
@@ -529,7 +529,7 @@ export function AdminFinancialsSection({
                     <td
                       colSpan={6}
                       className={styles.tableCell}
-                      style={{ textAlign: 'center', color: '#64748B', padding: '2rem 1rem' }}
+                      style={{ textAlign: 'center', color: '#415A77', padding: '2rem 1rem' }}
                     >
                       Tidak ada data event biaya yang sesuai dengan filter.
                     </td>

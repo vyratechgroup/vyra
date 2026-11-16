@@ -160,7 +160,7 @@ export function ReportPreview() {
           style={{ rotateX, scale, transformPerspective: 1400 }}
           className="mx-auto mt-8 max-w-5xl origin-bottom"
         >
-          <div className="overflow-hidden rounded-[32px] border border-line bg-cream shadow-[0_40px_80px_-40px_rgba(37,34,31,0.35)]">
+          <div className="overflow-hidden rounded-[32px] border border-line bg-cream shadow-[0_40px_80px_-40px_rgba(13,27,42,0.35)]">
             <ReportHeader />
             <div className="grid gap-8 p-5 sm:p-8 md:grid-cols-[240px_1fr] lg:grid-cols-[270px_1fr] lg:gap-10">
               <div className="md:self-start">
@@ -199,7 +199,7 @@ function ReportHeader() {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-paper px-5 py-4 sm:px-8">
       <div className="flex items-center gap-3">
-        <span className="relative h-10 w-10 overflow-hidden rounded-full bg-[#e3cfb3] ring-2 ring-accent/40">
+        <span className="relative h-10 w-10 overflow-hidden rounded-full bg-line ring-2 ring-accent/40">
           <Image
             src={PHOTO}
             alt=""
@@ -252,7 +252,7 @@ function PhotoStage({ mode }: { mode: TabId }) {
 
   return (
     <div>
-      <div className="relative mx-auto aspect-[768/1376] w-full max-w-[210px] overflow-hidden rounded-3xl md:max-w-[270px] bg-[#e3cfb3] shadow-[0_30px_60px_-30px_rgba(37,34,31,0.55)]">
+      <div className="relative mx-auto aspect-[768/1376] w-full max-w-[210px] overflow-hidden rounded-3xl md:max-w-[270px] bg-line shadow-[0_30px_60px_-30px_rgba(13,27,42,0.55)]">
         {mode === "vto" ? (
           <TryOnSlider />
         ) : (
@@ -364,7 +364,7 @@ function QualityOverlay() {
         from="10%"
         to="92%"
         duration={3.2}
-        className="inset-x-3 h-0.5 rounded-full bg-paper/90 shadow-[0_0_18px_4px_rgba(250,248,244,0.6)]"
+        className="inset-x-3 h-0.5 rounded-full bg-paper/90 shadow-[0_0_18px_4px_rgba(250,248,239,0.6)]"
       />
     </motion.div>
   );
@@ -527,7 +527,7 @@ function Drape({ color, label, good }: { color: string; label: string; good: boo
         className="relative mx-auto h-24 w-24 rounded-full p-2.5 shadow-md"
         style={{ background: color }}
       >
-        <div className="relative h-full w-full overflow-hidden rounded-full bg-[#e3cfb3]">
+        <div className="relative h-full w-full overflow-hidden rounded-full bg-line">
           <Image
             src={PHOTO}
             alt=""
@@ -629,7 +629,7 @@ function BodyPanel() {
                   />
                 )}
                 <span className="relative block">
-                  <span className="relative block aspect-[3/4] overflow-hidden rounded-xl bg-[#ede6da]">
+                  <span className="relative block aspect-[3/4] overflow-hidden rounded-xl bg-cream">
                     <Image
                       src={s.image}
                       alt={`Dress form dengan bentuk tubuh ${s.name}`}
@@ -782,7 +782,7 @@ function TryOnPanel() {
       <Block>
         <p className={eyebrow}>Produk yang dicoba</p>
         <div className="mt-3 flex gap-4 rounded-3xl bg-paper p-4">
-          <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-[#ede6da]">
+          <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-cream">
             <Image src="/images/product-wrap-blouse.webp" alt="Wrap blouse dusty rose" fill sizes="112px" className="object-cover" />
           </div>
           <div>

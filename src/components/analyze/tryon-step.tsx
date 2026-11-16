@@ -469,7 +469,7 @@ function AnalysisSummaryCard({ state, completed }: { state: FlowState; completed
               Laporan Analisis Siap
             </span>
             {completed && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent/20 px-2.5 py-0.5 text-xs font-medium text-accent-light">
                 <Check size={12} className="stroke-[3]" />
                 Try-On Selesai
               </span>
@@ -528,7 +528,7 @@ function AnalysisSummaryCard({ state, completed }: { state: FlowState; completed
               className="inline-flex items-center gap-2 rounded-full border border-paper/30 px-4 py-2.5 text-xs font-medium text-paper transition hover:bg-paper/10"
               title="Salin tautan rahasia laporan"
             >
-              {copied ? <Check size={14} className="text-emerald-400 stroke-[3]" /> : <Copy size={14} />}
+              {copied ? <Check size={14} className="text-accent-light stroke-[3]" /> : <Copy size={14} />}
               <span>{copied ? "Tersalin" : "Salin tautan"}</span>
             </button>
           )}

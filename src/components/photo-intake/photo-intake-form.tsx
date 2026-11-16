@@ -8,6 +8,8 @@ import {
   type GenderType,
 } from '@/shared/body-shape-labels';
 import { PHOTO_POLICY, type PhotoKind } from '@/shared/photo-policy';
+import { Camera } from 'lucide-react';
+import { CameraCapture } from '@/components/ui/camera-capture';
 import { validatePhotoFile } from './photo-file-validation';
 import styles from './photo-intake-form.module.css';
 
@@ -92,6 +94,7 @@ export function PhotoIntakeForm({
 }: PhotoIntakeFormProps = {}) {
   const [photos, setPhotos] = useState<PhotoSlots>(initialPhotos);
   const [errors, setErrors] = useState<PhotoErrors>({});
+  const [cameraFor, setCameraFor] = useState<PhotoKind | null>(null);
   const [status, setStatus] = useState('');
   const [consent, setConsent] = useState(false);
   const [gender, setGender] = useState<GenderType | null>(null);
@@ -203,7 +206,15 @@ export function PhotoIntakeForm({
     const fileCount = files?.length ?? 0;
     const file = files?.[0];
     event.currentTarget.value = '';
-    if (!file) return;
+    await acceptFile(kind, file, fileCount);
+  }
+
+  async function acceptFile(
+    kind: PhotoKind,
+    file: File | undefined,
+    fileCount = 1,
+  ) {
+    if (isCheckoutLocked || !file) return;
 
     setStatus('');
     if (fileCount > PHOTO_POLICY.maxCount[kind]) {
@@ -529,6 +540,21 @@ export function PhotoIntakeForm({
           Demo lokal: foto tidak dikirim ke server dan tidak disimpan.
         </p>
       )}
+      <CameraCapture
+        key={cameraFor ?? 'closed'}
+        open={cameraFor !== null}
+        title={cameraFor === 'face' ? 'Foto wajah' : 'Foto seluruh tubuh'}
+        guide={cameraFor === 'fullBody' ? 'body' : 'face'}
+        initialFacing="user"
+        initialTimer={cameraFor === 'fullBody' ? 10 : 0}
+        fileName={`foto-${cameraFor ?? 'kamera'}`}
+        onClose={() => setCameraFor(null)}
+        onCapture={(file) => {
+          const kind = cameraFor;
+          setCameraFor(null);
+          if (kind) void acceptFile(kind, file);
+        }}
+      />
       <section className={styles.slots} aria-label="Foto untuk demo">
         {(['face', 'fullBody'] as const).map((kind) => {
           const photo = photos[kind];
@@ -556,6 +582,13 @@ export function PhotoIntakeForm({
                     </label>
                     <button
                       className={styles.secondaryAction}
+                      onClick={() => setCameraFor(kind)}
+                      type="button"
+                    >
+                      Foto ulang dengan kamera
+                    </button>
+                    <button
+                      className={styles.secondaryAction}
                       onClick={() => removePhoto(kind)}
                       type="button"
                     >
@@ -577,6 +610,16 @@ export function PhotoIntakeForm({
                   </span>
                   <span>JPEG, PNG, atau WebP · maksimal 10 MB</span>
                 </label>
+              )}
+              {!photo && (
+                <button
+                  className={styles.cameraAction}
+                  disabled={isCheckoutLocked}
+                  onClick={() => setCameraFor(kind)}
+                  type="button"
+                >
+                  <Camera aria-hidden="true" size={16} /> Ambil dengan kamera
+                </button>
               )}
               <input
                 accept="image/jpeg,image/png,image/webp"
@@ -681,7 +724,7 @@ export function PhotoIntakeForm({
           style={{
             marginTop: '1.25rem',
             padding: '1rem',
-            border: '1px solid #d4d4d8',
+            border: '1px solid #d4c4ab',
             borderRadius: '0.75rem',
           }}
         >

@@ -1,12 +1,12 @@
 .card {
-  background: #ffffff;
-  border: 1px solid #e0e1db;
+  background: #faf8ef;
+  border: 1px solid #d4c4ab;
   border-radius: 1rem;
   padding: 1.5rem;
-  color: #20221f;
+  color: #0d1b2a;
   display: grid;
   gap: 1rem;
-  box-shadow: 0 2px 10px rgba(32, 34, 31, 0.04);
+  box-shadow: 0 2px 10px rgba(13, 27, 42, 0.04);
 }
 
 .header {
@@ -23,7 +23,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #53664f;
+  color: #4e6451;
 }
 
 .title {
@@ -36,13 +36,13 @@
 .subtitle {
   margin: 0.35rem 0 0;
   font-size: 0.9rem;
-  color: #62645e;
+  color: #415a77;
   line-height: 1.5;
 }
 
 .priceBox {
-  background: #f3f6ef;
-  border: 1px solid #d8dfd2;
+  background: #dddfcc;
+  border: 1px solid #d4c4ab;
   border-radius: 0.75rem;
   padding: 0.6rem 0.95rem;
   text-align: right;
@@ -53,7 +53,7 @@
   display: block;
   font-size: 0.72rem;
   font-weight: 600;
-  color: #53664f;
+  color: #4e6451;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -62,7 +62,7 @@
   display: block;
   font-size: 1.2rem;
   font-weight: 700;
-  color: #20221f;
+  color: #0d1b2a;
 }
 
 .badgesRow {
@@ -74,7 +74,7 @@
 
 .badgesCaption {
   font-size: 0.82rem;
-  color: #62645e;
+  color: #415a77;
   margin-right: 0.25rem;
 }
 
@@ -84,9 +84,9 @@
   gap: 0.35rem;
   padding: 0.3rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid #d8dfd2;
-  background: #f8f8f5;
-  color: #20221f;
+  border: 1px solid #d4c4ab;
+  background: #f4f1de;
+  color: #0d1b2a;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -96,14 +96,14 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 999px;
-  background: #20221f;
+  background: #0d1b2a;
 }
 
 .badgeDotGopay {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 999px;
-  background: #00880c;
+  background: #4e6451;
 }
 
 .primaryButton {
@@ -112,8 +112,8 @@
   padding: 0.85rem 1.25rem;
   border: none;
   border-radius: 0.75rem;
-  background: #344331;
-  color: #ffffff;
+  background: #1b263b;
+  color: #faf8ef;
   font-size: 0.98rem;
   font-weight: 700;
   cursor: pointer;
@@ -121,13 +121,13 @@
 }
 
 .primaryButton:hover:not(:disabled) {
-  background: #20221f;
+  background: #0d1b2a;
 }
 
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .fallbackLink:focus-visible {
-  outline: 2px solid #6b805f;
+  outline: 2px solid #4e6451;
   outline-offset: 2px;
 }
 
@@ -139,8 +139,8 @@
 .statusPanel {
   padding: 0.9rem 1rem;
   border-radius: 0.75rem;
-  background: #f3f6ef;
-  border: 1px solid #d8dfd2;
+  background: #dddfcc;
+  border: 1px solid #d4c4ab;
   display: grid;
   gap: 0.75rem;
 }
@@ -148,7 +148,7 @@
 .statusText {
   margin: 0;
   font-size: 0.9rem;
-  color: #20221f;
+  color: #0d1b2a;
   line-height: 1.45;
 }
 
@@ -173,16 +173,16 @@
   min-height: 40px;
   padding: 0.55rem 0.95rem;
   border-radius: 0.65rem;
-  border: 1px solid #c9d1c2;
-  background: #ffffff;
-  color: #20221f;
+  border: 1px solid #d4c4ab;
+  background: #faf8ef;
+  color: #0d1b2a;
   font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .secondaryButton:hover:not(:disabled) {
-  background: #f8f8f5;
+  background: #f4f1de;
 }
 
 .secondaryButton:disabled {
@@ -197,29 +197,29 @@
   min-height: 40px;
   padding: 0.55rem 0.95rem;
   border-radius: 0.65rem;
-  background: #53664f;
-  color: #ffffff;
+  background: #4e6451;
+  color: #faf8ef;
   font-size: 0.86rem;
   font-weight: 600;
   text-decoration: none;
 }
 
 .fallbackLink:hover {
-  background: #344331;
+  background: #1b263b;
 }
 
 .successBanner {
   padding: 0.85rem 1rem;
   border-radius: 0.75rem;
-  background: #ecfdf3;
-  border: 1px solid #a7f3d0;
-  color: #065f46;
+  background: #dddfcc;
+  border: 1px solid #afbfae;
+  color: #4e6451;
   font-size: 0.9rem;
   font-weight: 600;
 }
 
 .flowContainer {
-  background: #f8f8f5;
+  background: #f4f1de;
   padding-top: 2rem;
 }
 

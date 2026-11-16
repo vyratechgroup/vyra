@@ -68,7 +68,7 @@ export function ArchFrame({
       )}
       {scanning && (
         <>
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(250,248,244,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(250,248,244,0.14)_1px,transparent_1px)] bg-[size:24px_24px]" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(250,248,239,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(250,248,239,0.14)_1px,transparent_1px)] bg-[size:24px_24px]" />
           <SweepLine
             from="6%"
             to="94%"
@@ -79,7 +79,7 @@ export function ArchFrame({
             from="6%"
             to="94%"
             duration={2.6}
-            className="inset-x-3 h-0.5 rounded-full bg-paper shadow-[0_0_18px_4px_rgba(201,179,143,0.75)]"
+            className="inset-x-3 h-0.5 rounded-full bg-paper shadow-[0_0_18px_4px_rgba(175,191,174,0.75)]"
           />
         </>
       )}

@@ -265,7 +265,7 @@ function CheckoutStep({
   ];
 
   return (
-    <div className="grid gap-10 md:grid-cols-[1.1fr_1fr] md:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-10 md:grid-cols-[1.1fr_1fr] md:items-start">
       <div>
         {free ? (
           <Heading eyebrow="Langkah 1 · Uji coba gratis" title={<>Coba dulu, <em className="text-accent">gratis</em>.</>}>
@@ -292,7 +292,7 @@ function CheckoutStep({
         </p>
       </div>
 
-      <div className="rounded-[2rem] border border-line bg-paper p-6 shadow-[0_24px_48px_-32px_rgba(37,34,31,0.45)] sm:p-8">
+      <div className="rounded-[2rem] border border-line bg-paper p-6 shadow-[0_24px_48px_-32px_rgba(13,27,42,0.45)] sm:p-8">
         <div className="flex items-center justify-between text-sm text-muted">
           <span className="font-display text-xl text-ink">FLICKS Lite</span>
           <span className="flex items-center gap-1.5">

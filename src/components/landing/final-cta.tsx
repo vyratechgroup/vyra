@@ -66,7 +66,7 @@ export function FinalCta() {
   // Warm spotlight that follows the pointer across the panel.
   const mx = useMotionValue(700);
   const my = useMotionValue(260);
-  const spotlight = useMotionTemplate`radial-gradient(560px circle at ${mx}px ${my}px, rgba(201,179,143,0.18), transparent 65%)`;
+  const spotlight = useMotionTemplate`radial-gradient(560px circle at ${mx}px ${my}px, rgba(175,191,174,0.18), transparent 65%)`;
 
   return (
     <section ref={ref} className="pb-10">
@@ -80,9 +80,9 @@ export function FinalCta() {
         className="relative flex min-h-[640px] items-center justify-center overflow-hidden bg-ink px-6 py-40 text-center sm:min-h-[720px]"
       >
         {/* Depth: a soft top light, the pointer spotlight, and a floor glow */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_0%,rgba(154,128,96,0.22),transparent)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_0%,rgba(119,141,122,0.22),transparent)]" />
         <motion.div style={{ background: spotlight }} className="pointer-events-none absolute inset-0" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-[radial-gradient(ellipse_60%_70%_at_50%_100%,rgba(201,179,143,0.12),transparent)]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-[radial-gradient(ellipse_60%_70%_at_50%_100%,rgba(175,191,174,0.12),transparent)]" />
 
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           {swatches.map((s) => (
@@ -167,7 +167,7 @@ function SwatchCard({
           <span
             className={`absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 rounded-full ${
               s.from === "top" ? "top-3" : "bottom-3"
-            } ${s.light ? "bg-ink/15" : "bg-black/30"}`}
+            } ${s.light ? "bg-ink/15" : "bg-ink/30"}`}
           />
         </div>
       </motion.div>

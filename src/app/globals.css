@@ -2,17 +2,20 @@
 
 /* Brand system. Keep in sync with src/lib/brand.ts (used by JS animations). */
 @theme {
-  --color-cream: #f2eee6; /* Background utama */
-  --color-ink: #25221f; /* Teks dan navigasi */
-  --color-accent: #9a8060; /* Aksen premium */
-  --color-line: #d4c9b8; /* Garis dan permukaan sekunder */
+  /* Palette: #0D1B2A · #1B263B · #415A77 · #778D7A · #D4C4AB · #F4F1DE */
+  --color-cream: #f4f1de; /* Background utama */
+  --color-ink: #0d1b2a; /* Teks utama, navigasi, tombol utama */
+  --color-navy: #1b263b; /* Permukaan gelap sekunder, hover tombol utama */
+  --color-slate: #415a77; /* Teks sekunder, ikon, tautan */
+  --color-accent: #778d7a; /* Aksen (sage): ikon, garis, isian dekoratif */
+  --color-line: #d4c4ab; /* Garis dan permukaan sekunder (sand) */
 
-  /* Derived shades */
-  --color-paper: #faf8f4; /* Card surfaces */
-  --color-muted: #6b645b; /* Secondary text */
-  --color-accent-deep: #6f5b40; /* Accent for small text on light backgrounds */
-  --color-accent-light: #c9b38f; /* Accent on dark backgrounds */
-  --color-accent-soft: #e6dccb; /* Accent tint for chips and fills */
+  /* Derived shades (tints/shades of the palette above) */
+  --color-paper: #faf8ef; /* Card surfaces (lighter cream) */
+  --color-muted: #415a77; /* Secondary text (= slate, 6.3:1 on cream) */
+  --color-accent-deep: #4e6451; /* Sage for small text on light backgrounds (5.7:1) */
+  --color-accent-light: #afbfae; /* Sage on dark backgrounds (9:1 on ink) */
+  --color-accent-soft: #dddfcc; /* Sage tint for chips and fills */
 }
 
 @theme inline {
@@ -27,6 +30,7 @@ html {
 html,
 body {
   margin: 0;
+  max-width: 100%;
   padding: 0;
   height: 100%;
 }
@@ -70,6 +74,6 @@ section[id] {
 }
 
 ::selection {
-  background: var(--color-plum);
+  background: var(--color-slate);
   color: var(--color-paper);
 }

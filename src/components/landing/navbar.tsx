@@ -55,7 +55,7 @@ export function Navbar() {
         <nav
           className={`mx-auto flex max-w-6xl items-center justify-between rounded-full px-5 py-3 transition-[background-color,box-shadow] duration-500 ${
             scrolled || open
-              ? "bg-paper/90 shadow-[0_8px_30px_-12px_rgba(37,34,31,0.25)] backdrop-blur-md"
+              ? "bg-paper/90 shadow-[0_8px_30px_-12px_rgba(13,27,42,0.25)] backdrop-blur-md"
               : "bg-transparent"
           }`}
         >

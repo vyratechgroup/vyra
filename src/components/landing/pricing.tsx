@@ -36,7 +36,7 @@ function Receipt() {
       <motion.div
         variants={{ hidden: { clipPath: "inset(0 0 100% 0)" }, show: { clipPath: "inset(0 0 0% 0)" } }}
         transition={{ duration: 1.4, ease: easeOut, delay: 0.2 }}
-        className={`bg-paper px-6 pb-9 pt-6 shadow-[0_24px_40px_-24px_rgba(37,34,31,0.4)] ${tornEdge}`}
+        className={`bg-paper px-6 pb-9 pt-6 shadow-[0_24px_40px_-24px_rgba(13,27,42,0.4)] ${tornEdge}`}
       >
         <div className="flex items-center justify-between text-xs text-muted">
           <span className="font-display text-lg text-ink">FLICKS Lite</span>
@@ -131,7 +131,7 @@ export function Pricing() {
               />
               <div className={`relative bg-paper px-8 pb-8 pt-16 sm:px-10 sm:pb-10 ${innerShape}`}>
                 {/* Punched hole */}
-                <span className="absolute left-1/2 top-8 h-5 w-5 -translate-x-1/2 rounded-full bg-cream shadow-[inset_0_2px_4px_rgba(37,34,31,0.25)] ring-1 ring-line" />
+                <span className="absolute left-1/2 top-8 h-5 w-5 -translate-x-1/2 rounded-full bg-cream shadow-[inset_0_2px_4px_rgba(13,27,42,0.25)] ring-1 ring-line" />
 
                 <div className="text-center">
                   <span className="rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent-deep">

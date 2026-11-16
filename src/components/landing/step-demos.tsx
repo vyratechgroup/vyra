@@ -36,15 +36,15 @@ export function DemoPhone({ children, callouts }: { children: React.ReactNode; c
       {/* Floor shadow */}
       <div className="absolute -bottom-8 left-1/2 h-10 w-[85%] -translate-x-1/2 rounded-[50%] bg-ink/35 blur-xl" />
       {/* Side buttons */}
-      <span className="absolute -left-[3px] top-24 h-8 w-[4px] rounded-l-sm bg-gradient-to-r from-[#5a534c] to-[#2c2824]" />
-      <span className="absolute -left-[3px] top-36 h-14 w-[4px] rounded-l-sm bg-gradient-to-r from-[#5a534c] to-[#2c2824]" />
-      <span className="absolute -right-[3px] top-32 h-20 w-[4px] rounded-r-sm bg-gradient-to-l from-[#5a534c] to-[#2c2824]" />
+      <span className="absolute -left-[3px] top-24 h-8 w-[4px] rounded-l-sm bg-gradient-to-r from-slate to-navy" />
+      <span className="absolute -left-[3px] top-36 h-14 w-[4px] rounded-l-sm bg-gradient-to-r from-slate to-navy" />
+      <span className="absolute -right-[3px] top-32 h-20 w-[4px] rounded-r-sm bg-gradient-to-l from-slate to-navy" />
 
       {/* Metal frame → black bezel → screen */}
-      <div className="relative h-full w-full rounded-[2.75rem] bg-gradient-to-br from-[#6b635b] via-[#2b2723] to-[#4a443e] p-[3px] shadow-[0_50px_90px_-30px_rgba(37,34,31,0.75),inset_0_1px_1px_rgba(255,255,255,0.35)]">
-        <div className="h-full w-full rounded-[2.6rem] bg-[#0e0d0c] p-[9px]">
+      <div className="relative h-full w-full rounded-[2.75rem] bg-gradient-to-br from-slate via-navy to-ink p-[3px] shadow-[0_50px_90px_-30px_rgba(13,27,42,0.75),inset_0_1px_1px_rgba(255,255,255,0.35)]">
+        <div className="h-full w-full rounded-[2.6rem] bg-ink p-[9px]">
           <div className="relative h-full w-full overflow-hidden rounded-[2.15rem] bg-paper text-ink">
-            <div className="absolute left-1/2 top-2.5 z-40 h-[22px] w-[78px] -translate-x-1/2 rounded-full bg-black" />
+            <div className="absolute left-1/2 top-2.5 z-40 h-[22px] w-[78px] -translate-x-1/2 rounded-full bg-ink" />
             <StatusBar />
             <div className="absolute inset-x-0 bottom-0 top-10">{children}</div>
             {/* Home indicator + glass sheen */}
@@ -101,7 +101,7 @@ function Callout({
           <motion.div
             animate={{ y: [0, -7, 0] }}
             transition={{ duration: 4.5, ease: "easeInOut", repeat: Infinity, delay }}
-            className="rounded-2xl bg-paper px-3.5 py-3 text-ink shadow-[0_28px_50px_-18px_rgba(37,34,31,0.5)] ring-1 ring-line/70"
+            className="rounded-2xl bg-paper px-3.5 py-3 text-ink shadow-[0_28px_50px_-18px_rgba(13,27,42,0.5)] ring-1 ring-line/70"
           >
             {children}
           </motion.div>
@@ -134,7 +134,7 @@ export function UploadCallouts({ active }: CalloutProps) {
   return (
     <>
       <Callout active={active} delay={0.5} className="-left-28 top-16 -rotate-6">
-        <div className="relative h-32 w-24 overflow-hidden rounded-lg bg-[#e3cfb3]">
+        <div className="relative h-32 w-24 overflow-hidden rounded-lg bg-line">
           <Image src="/images/model-before.webp" alt="" fill sizes="96px" className="object-cover object-top" />
         </div>
         <p className="mt-2 flex items-center gap-1 text-[10px] font-medium">
@@ -174,7 +174,7 @@ export function TryOnCallouts({ active }: CalloutProps) {
   return (
     <>
       <Callout active={active} delay={0.5} className="-left-28 top-20 w-36 rotate-[-4deg]">
-        <div className="relative aspect-square overflow-hidden rounded-xl bg-[#ede6da]">
+        <div className="relative aspect-square overflow-hidden rounded-xl bg-cream">
           <Image src="/images/product-wrap-blouse.webp" alt="" fill sizes="144px" className="object-cover" />
         </div>
         <p className="mt-2 text-[11px] font-semibold">Wrap Blouse</p>
@@ -254,7 +254,7 @@ export function PayDemo({ active }: DemoProps) {
     <AnimatePresence mode="wait">
       {phase === 0 && (
         <Screen key="checkout">
-          <div className="relative -mx-2 h-28 overflow-hidden rounded-2xl bg-[#e3cfb3]">
+          <div className="relative -mx-2 h-28 overflow-hidden rounded-2xl bg-line">
             <Image src="/images/model-after.webp" alt="" fill sizes="240px" className="object-cover object-[50%_22%]" />
             <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/20 to-transparent" />
             <p className="absolute bottom-2.5 left-3 font-display text-xl text-paper">1 Token FLICKS</p>
@@ -282,14 +282,14 @@ export function PayDemo({ active }: DemoProps) {
       {phase === 1 && (
         <Screen key="qr" className="items-center bg-gradient-to-b from-accent-soft via-paper to-paper text-center">
           <p className={label}>Scan untuk bayar</p>
-          <div className="relative mt-4 grid grid-cols-11 gap-[2px] rounded-2xl bg-paper p-3.5 shadow-[0_18px_30px_-16px_rgba(37,34,31,0.45)] ring-1 ring-line">
+          <div className="relative mt-4 grid grid-cols-11 gap-[2px] rounded-2xl bg-paper p-3.5 shadow-[0_18px_30px_-16px_rgba(13,27,42,0.45)] ring-1 ring-line">
             {/* Scanner sweep over the code */}
             <SweepLine
               from="8%"
               to="86%"
               duration={2}
               layerClassName="z-10"
-              className="inset-x-6 h-0.5 rounded-full bg-accent/80 shadow-[0_0_14px_3px_rgba(154,128,96,0.5)]"
+              className="inset-x-6 h-0.5 rounded-full bg-accent/80 shadow-[0_0_14px_3px_rgba(119,141,122,0.5)]"
             />
             {qrCells.map((on, i) => (
               <motion.span
@@ -341,7 +341,7 @@ export function PayDemo({ active }: DemoProps) {
               initial={{ scale: 0, rotate: -40 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", stiffness: 260, damping: 14 }}
-              className="relative flex h-16 w-16 items-center justify-center rounded-full bg-accent-deep text-paper shadow-[0_12px_24px_-8px_rgba(111,91,64,0.7)]"
+              className="relative flex h-16 w-16 items-center justify-center rounded-full bg-accent-deep text-paper shadow-[0_12px_24px_-8px_rgba(78,100,81,0.7)]"
             >
               <Check size={30} />
             </motion.span>
@@ -377,7 +377,7 @@ export function UploadDemo({ active }: DemoProps) {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 + i * 0.15 }}
-                className="relative h-28 overflow-hidden rounded-xl bg-[#e3cfb3]"
+                className="relative h-28 overflow-hidden rounded-xl bg-line"
               >
                 <Image src="/images/model-before.webp" alt="" fill sizes="110px" className={`object-cover object-top ${ex.filter}`} />
                 <span
@@ -438,7 +438,7 @@ export function UploadDemo({ active }: DemoProps) {
             initial={{ opacity: 0, y: 30, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ type: "spring", stiffness: 160, damping: 18 }}
-            className="relative mt-3 flex-1 overflow-hidden rounded-2xl bg-[#e3cfb3]"
+            className="relative mt-3 flex-1 overflow-hidden rounded-2xl bg-line"
           >
             <Image src="/images/model-before.webp" alt="" fill sizes="220px" className="object-cover object-top" />
             {phase === 3 && (
@@ -487,7 +487,7 @@ const landmarks = [
 export function AnalyzeDemo({ active }: DemoProps) {
   const phase = usePhase(analyzeDurations, active);
   return (
-    <div className="absolute inset-0 bg-[#e3cfb3]">
+    <div className="absolute inset-0 bg-line">
       <Image src="/images/model-before.webp" alt="" fill sizes="240px" className="object-cover object-top" />
 
       {phase === 0 && (
@@ -495,7 +495,7 @@ export function AnalyzeDemo({ active }: DemoProps) {
           from="12%"
           to="78%"
           duration={2.4}
-          className="inset-x-4 h-0.5 rounded-full bg-accent shadow-[0_0_24px_6px_rgba(154,128,96,0.5)]"
+          className="inset-x-4 h-0.5 rounded-full bg-accent shadow-[0_0_24px_6px_rgba(119,141,122,0.5)]"
         />
       )}
 
@@ -617,7 +617,7 @@ export function TryOnDemo({ active }: DemoProps) {
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0, scale: picked ? 1.04 : 1 }}
                   transition={{ delay: phase === 0 ? i * 0.1 : 0 }}
-                  className={`relative overflow-hidden rounded-2xl bg-[#ede6da] ring-2 transition-colors ${
+                  className={`relative overflow-hidden rounded-2xl bg-cream ring-2 transition-colors ${
                     picked ? "ring-accent" : "ring-transparent"
                   }`}
                 >
@@ -666,7 +666,7 @@ export function TryOnDemo({ active }: DemoProps) {
             <motion.div
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 1.2, ease: "easeInOut", repeat: Infinity }}
-              className="absolute inset-3 overflow-hidden rounded-full bg-[#ede6da] shadow-[0_14px_28px_-12px_rgba(37,34,31,0.5)]"
+              className="absolute inset-3 overflow-hidden rounded-full bg-cream shadow-[0_14px_28px_-12px_rgba(13,27,42,0.5)]"
             >
               <Image src="/images/product-wrap-blouse.webp" alt="" fill sizes="120px" className="object-cover" />
             </motion.div>
@@ -677,7 +677,7 @@ export function TryOnDemo({ active }: DemoProps) {
       )}
       {phase === 3 && (
         <Screen key="result" className="px-0 pb-0 pt-0">
-          <div className="relative flex-1 bg-[#e3cfb3]">
+          <div className="relative flex-1 bg-line">
             <Image src="/images/model-before.webp" alt="" fill sizes="240px" className="object-cover object-top" />
             <motion.div
               initial={{ clipPath: "inset(0 0 0 100%)" }}
@@ -756,7 +756,7 @@ export function ReportDemo({ active }: DemoProps) {
                 <p className="mt-1 font-display text-xl">Hourglass</p>
                 <p className="text-[10px] text-muted">Wrap dress, high-waist, belt di pinggang</p>
               </div>
-              <div className="relative h-44 overflow-hidden rounded-2xl bg-[#e3cfb3]">
+              <div className="relative h-44 overflow-hidden rounded-2xl bg-line">
                 <Image src="/images/model-after.webp" alt="" fill sizes="220px" className="object-cover object-top" />
               </div>
               <p className="text-[10px] leading-relaxed text-muted">

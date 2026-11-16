@@ -267,7 +267,7 @@ export function ProductCatalogSection({
                 style={{
                   textAlign: 'center',
                   padding: '2.5rem 1rem',
-                  color: '#64748B',
+                  color: '#415A77',
                 }}
               >
                 Tidak ada produk yang cocok dengan pencarian atau filter yang dipilih.
