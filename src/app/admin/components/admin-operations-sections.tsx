@@ -187,7 +187,7 @@ export function AdminTransactionsSection({
                       style={{
                         fontFamily: 'var(--font-mono, monospace)',
                         fontSize: '0.8rem',
-                        color: '#64748B',
+                        color: '#415A77',
                       }}
                     >
                       {tx.paymentId}
@@ -220,7 +220,7 @@ export function AdminTransactionsSection({
                           {tx.token.status}
                         </span>
                       ) : (
-                        <span style={{ color: '#94A3B8' }}>—</span>
+                        <span style={{ color: '#7D8FA5' }}>—</span>
                       )}
                     </td>
                   </tr>
@@ -230,7 +230,7 @@ export function AdminTransactionsSection({
                   <td
                     colSpan={6}
                     className={styles.tableCell}
-                    style={{ textAlign: 'center', color: '#64748B', padding: '2rem 1rem' }}
+                    style={{ textAlign: 'center', color: '#415A77', padding: '2rem 1rem' }}
                   >
                     Tidak ada transaksi yang cocok dengan filter.
                   </td>
@@ -292,7 +292,7 @@ export function AdminTransactionsSection({
                       style={{
                         fontFamily: 'var(--font-mono, monospace)',
                         fontSize: '0.8rem',
-                        color: '#64748B',
+                        color: '#415A77',
                       }}
                     >
                       {tok.paymentId ?? '—'}
@@ -313,7 +313,7 @@ export function AdminTransactionsSection({
                   <td
                     colSpan={6}
                     className={styles.tableCell}
-                    style={{ textAlign: 'center', color: '#64748B', padding: '2rem 1rem' }}
+                    style={{ textAlign: 'center', color: '#415A77', padding: '2rem 1rem' }}
                   >
                     Tidak ada data token yang sesuai dengan pencarian.
                   </td>
@@ -619,11 +619,11 @@ export function AdminJobsSection({ jobs }: AdminJobsSectionProps) {
                       }}
                     >
                       {row.orderReference ? (
-                        <span style={{ color: 'var(--admin-accent-primary, #6366F1)' }}>
+                        <span style={{ color: 'var(--admin-accent-primary, #415A77)' }}>
                           {row.orderReference}
                         </span>
                       ) : (
-                        <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>
+                        <span style={{ color: '#7D8FA5', fontStyle: 'italic' }}>
                           Tanpa Order
                         </span>
                       )}
@@ -634,14 +634,14 @@ export function AdminJobsSection({ jobs }: AdminJobsSectionProps) {
                   </td>
                   <td className={styles.tableCell}>
                     <div style={{ fontWeight: 600 }}>{row.jobType}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>{row.provider}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#7D8FA5' }}>{row.provider}</div>
                   </td>
                   <td
                     className={styles.tableCell}
                     style={{
                       fontFamily: 'var(--font-mono, monospace)',
                       fontSize: '0.8rem',
-                      color: '#64748B',
+                      color: '#415A77',
                     }}
                   >
                     <div>#{row.jobId.length > 10 ? row.jobId.slice(0, 10) : row.jobId}</div>
@@ -680,7 +680,7 @@ export function AdminJobsSection({ jobs }: AdminJobsSectionProps) {
                     className={styles.tableCell}
                     style={{
                       maxWidth: '280px',
-                      color: row.isError ? 'var(--admin-danger)' : '#E2E8F0',
+                      color: row.isError ? 'var(--admin-danger)' : '#E2D8C6',
                       fontSize: '0.8rem',
                       wordBreak: 'break-word',
                     }}
@@ -694,7 +694,7 @@ export function AdminJobsSection({ jobs }: AdminJobsSectionProps) {
                 <td
                   colSpan={9}
                   className={styles.tableCell}
-                  style={{ textAlign: 'center', color: '#64748B', padding: '2rem 1rem' }}
+                  style={{ textAlign: 'center', color: '#415A77', padding: '2rem 1rem' }}
                 >
                   Tidak ada job yang sesuai dengan kriteria filter.
                 </td>

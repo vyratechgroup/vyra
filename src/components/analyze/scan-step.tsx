@@ -111,10 +111,10 @@ export function ScanStep({
       </h1>
 
       {/* the pinboard */}
-      <div className="relative mt-8 w-full max-w-2xl overflow-hidden rounded-[2rem] bg-paper px-5 py-8 ring-1 ring-line shadow-[0_30px_60px_-40px_rgba(37,34,31,0.45)] sm:px-10 sm:py-10">
+      <div className="relative mt-8 w-full max-w-2xl overflow-hidden rounded-[2rem] bg-paper px-5 py-8 ring-1 ring-line shadow-[0_30px_60px_-40px_rgba(13,27,42,0.45)] sm:px-10 sm:py-10">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(154,128,96,0.09)_1px,transparent_1px),linear-gradient(90deg,rgba(154,128,96,0.09)_1px,transparent_1px)] [background-size:22px_22px]"
+          className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(119,141,122,0.09)_1px,transparent_1px),linear-gradient(90deg,rgba(119,141,122,0.09)_1px,transparent_1px)] [background-size:22px_22px]"
         />
         <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent-soft/60 blur-3xl" />
 
@@ -138,7 +138,7 @@ export function ScanStep({
               initial={{ scale: 0, opacity: 0, y: 8 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               transition={{ type: "spring", stiffness: 320, damping: 18, delay: 0.15 }}
-              className="pointer-events-none absolute z-20 flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xl ring-4 ring-paper"
+              className="pointer-events-none absolute z-20 flex items-center gap-1.5 rounded-full bg-accent-deep px-4 py-2 text-xs font-semibold text-paper shadow-xl ring-4 ring-paper"
             >
               <Check size={14} className="stroke-[3]" />
               <span>Analisis Selesai</span>
@@ -157,7 +157,7 @@ export function ScanStep({
                 <span className={`flex items-center gap-1.5 transition-colors duration-500 ${isActive || isDone ? "text-accent-deep" : "text-muted"}`}>
                   <span
                     className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-colors duration-500 ${
-                      isDone ? "bg-emerald-600 text-white" : isActive ? "bg-accent-soft text-accent-deep" : "bg-cream text-muted"
+                      isDone ? "bg-accent-deep text-paper" : isActive ? "bg-accent-soft text-accent-deep" : "bg-cream text-muted"
                     }`}
                   >
                     {isDone ? <Check size={11} className="stroke-[3]" /> : i + 1}
@@ -249,12 +249,12 @@ function ScanPrint({
           className="absolute -top-2.5 left-1/2 z-10 h-5 w-[46%] -translate-x-1/2 rotate-[-3deg] bg-accent-light/55 shadow-sm [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]"
         />
         <figure
-          className={`bg-white p-[6%] pb-0 ring-1 transition-all duration-500 ${
+          className={`bg-paper p-[6%] pb-0 ring-1 transition-all duration-500 ${
             merged
-              ? "ring-2 ring-accent/60 shadow-[0_24px_45px_-15px_rgba(154,128,96,0.5)]"
+              ? "ring-2 ring-accent/60 shadow-[0_24px_45px_-15px_rgba(119,141,122,0.5)]"
               : active
-              ? "ring-black/5 shadow-[0_34px_50px_-24px_rgba(37,34,31,0.6)]"
-              : "ring-black/5 shadow-[0_18px_28px_-18px_rgba(37,34,31,0.5)]"
+              ? "ring-black/5 shadow-[0_34px_50px_-24px_rgba(13,27,42,0.6)]"
+              : "ring-black/5 shadow-[0_18px_28px_-18px_rgba(13,27,42,0.5)]"
           }`}
         >
           <span className={`relative block overflow-hidden bg-cream ${p.aspect}`}>
@@ -264,7 +264,7 @@ function ScanPrint({
             )}
             {scanning && (
               <>
-                <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(250,248,244,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(250,248,244,0.14)_1px,transparent_1px)] bg-[size:20px_20px]" />
+                <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(250,248,239,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(250,248,239,0.14)_1px,transparent_1px)] bg-[size:20px_20px]" />
                 <SweepLine
                   from="6%"
                   to="94%"
@@ -275,7 +275,7 @@ function ScanPrint({
                   from="6%"
                   to="94%"
                   duration={2.4}
-                  className="inset-x-2 h-0.5 rounded-full bg-paper shadow-[0_0_16px_4px_rgba(201,179,143,0.75)]"
+                  className="inset-x-2 h-0.5 rounded-full bg-paper shadow-[0_0_16px_4px_rgba(175,191,174,0.75)]"
                 />
                 <LandmarkDots key={kind} points={shot.points} delay={0.5} />
               </>
@@ -285,7 +285,7 @@ function ScanPrint({
                 initial={{ scale: 0, rotate: -25 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 350, damping: 15, delay: merged ? 0.1 : 0.25 }}
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg ring-2 ring-white"
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-accent-deep text-paper shadow-lg ring-2 ring-paper"
               >
                 <Check size={14} className="stroke-[3]" />
               </motion.span>

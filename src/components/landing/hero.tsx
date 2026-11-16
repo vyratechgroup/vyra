@@ -179,7 +179,7 @@ export function Hero() {
               animate={{ rotate: [-5, 3] }}
               transition={{ duration: 2.8, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" }}
               style={{ transformOrigin: "50% -28px" }}
-              className="relative w-28 rounded-t-[3.5rem] rounded-b-2xl bg-ink px-4 pb-4 pt-9 text-center text-paper shadow-[0_24px_40px_-16px_rgba(37,34,31,0.6)]"
+              className="relative w-28 rounded-t-[3.5rem] rounded-b-2xl bg-ink px-4 pb-4 pt-9 text-center text-paper shadow-[0_24px_40px_-16px_rgba(13,27,42,0.6)]"
             >
               <span className="absolute -top-7 left-1/2 h-10 w-px -translate-x-1/2 bg-ink/40" />
               <span className="absolute left-1/2 top-3 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-cream ring-1 ring-accent/40" />
@@ -201,10 +201,10 @@ export function Hero() {
               initial={{ opacity: 0, y: 60, rotate: 6 }}
               animate={{ opacity: 1, y: 0, rotate: 0 }}
               transition={{ duration: 1.2, ease: easeOut, delay: 0.3 }}
-              className="relative mx-auto h-[540px] w-[270px] rounded-[46px] bg-ink p-3 shadow-[0_40px_80px_-30px_rgba(37,34,31,0.6)]"
+              className="relative mx-auto h-[540px] w-[270px] rounded-[46px] bg-ink p-3 shadow-[0_40px_80px_-30px_rgba(13,27,42,0.6)]"
             >
               <div className="absolute left-1/2 top-5 z-20 h-5 w-20 -translate-x-1/2 rounded-full bg-ink" />
-              <div className="relative h-full w-full overflow-hidden rounded-[36px] bg-[#e3cfb3]">
+              <div className="relative h-full w-full overflow-hidden rounded-[36px] bg-line">
                 {/* Photo stops above the status pill so the shoes stay visible */}
                 <div className="absolute inset-x-0 top-0 bottom-12">
                   <Image
@@ -232,7 +232,7 @@ export function Hero() {
                   from="14%"
                   to="80%"
                   duration={4}
-                  className="inset-x-5 h-0.5 rounded-full bg-accent shadow-[0_0_24px_6px_rgba(154,128,96,0.45)]"
+                  className="inset-x-5 h-0.5 rounded-full bg-accent shadow-[0_0_24px_6px_rgba(119,141,122,0.45)]"
                 />
 
                 <div className="absolute inset-x-4 bottom-4 flex items-center gap-2 rounded-2xl bg-paper/95 px-3 py-2.5 text-xs text-ink">
@@ -310,7 +310,7 @@ function FloatCard({
       <motion.div
         animate={{ y: [0, float, 0] }}
         transition={{ duration: 5, ease: "easeInOut", repeat: Infinity }}
-        className="rounded-2xl border border-line/70 bg-paper/95 px-4 py-3 shadow-[0_20px_40px_-20px_rgba(37,34,31,0.35)]"
+        className="rounded-2xl border border-line/70 bg-paper/95 px-4 py-3 shadow-[0_20px_40px_-20px_rgba(13,27,42,0.35)]"
       >
         {children}
       </motion.div>

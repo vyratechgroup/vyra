@@ -139,10 +139,10 @@ function PhotoVault({ stage, cycle }: { stage: number; cycle: number }) {
       <motion.span
         animate={{ opacity: stage === 1 ? 1 : 0.35, scale: stage === 1 ? 1.05 : 1 }}
         transition={{ duration: 0.8, ease: easeOut }}
-        className="pointer-events-none absolute -inset-6 rounded-t-full rounded-b-[3rem] bg-[radial-gradient(closest-side,rgba(201,179,143,0.35),transparent)]"
+        className="pointer-events-none absolute -inset-6 rounded-t-full rounded-b-[3rem] bg-[radial-gradient(closest-side,rgba(175,191,174,0.35),transparent)]"
       />
 
-      <div className="relative aspect-[3/4] overflow-hidden rounded-t-full rounded-b-[2.5rem] bg-[#e3cfb3] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.8)] ring-1 ring-paper/20">
+      <div className="relative aspect-[3/4] overflow-hidden rounded-t-full rounded-b-[2.5rem] bg-line shadow-[0_40px_80px_-30px_rgba(0,0,0,0.8)] ring-1 ring-paper/20">
         <motion.div
           key={cycle}
           className="absolute inset-0"
@@ -293,7 +293,7 @@ function ProviderStage() {
         >
           <span
             style={{ top: `calc(${p.top} + 18px)` }}
-            className="absolute left-0 h-2 w-2 rounded-full bg-accent-light shadow-[0_0_10px_rgba(201,179,143,0.9)]"
+            className="absolute left-0 h-2 w-2 rounded-full bg-accent-light shadow-[0_0_10px_rgba(175,191,174,0.9)]"
           />
         </motion.span>
       ))}
@@ -405,7 +405,7 @@ function Point({
     >
       <motion.span
         animate={{
-          backgroundColor: active ? "rgba(201,179,143,1)" : "rgba(201,179,143,0)",
+          backgroundColor: active ? "rgba(175,191,174,1)" : "rgba(175,191,174,0)",
           color: active ? brand.ink : brand.accentLight,
           scale: active ? 1.08 : 1,
         }}

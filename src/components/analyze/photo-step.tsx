@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, Loader2, Plus, RefreshCw, X } from "lucide-react";
+import { Camera, Check, Loader2, Plus, RefreshCw, X } from "lucide-react";
 import { easeOut } from "@/components/motion/reveal";
 import { SweepLine } from "@/components/motion/shapes";
+import { CameraCapture } from "@/components/ui/camera-capture";
 import { TagButton } from "@/components/ui/tag-button";
 import { prepareBody, prepareFace, warmUp, type CheckId, type Prepared } from "@/lib/photo/prepare";
 import type { FlowState } from "@/services/session-state.service";
@@ -58,6 +59,7 @@ type Props = {
 export function PhotoStep({ state, photos, onPhotos, onSubmit, submitError }: Props) {
   const [consent, setConsent] = useState(false);
   const [checking, setChecking] = useState<Kind | null>(null);
+  const [cameraFor, setCameraFor] = useState<Kind | null>(null);
   const [rejected, setRejected] = useState<Partial<Record<Kind, { reason: string; checks: Prepared["checks"] }>>>({});
 
   // Load the detectors while the visitor reads the board.
@@ -133,10 +135,10 @@ export function PhotoStep({ state, photos, onPhotos, onSubmit, submitError }: Pr
       )}
 
       {/* Pattern-paper board */}
-      <div className="relative mt-8 overflow-hidden rounded-[2.25rem] border border-line bg-paper px-4 py-7 shadow-[0_30px_60px_-40px_rgba(37,34,31,0.45)] sm:px-8 sm:py-9">
+      <div className="relative mt-8 overflow-hidden rounded-[2.25rem] border border-line bg-paper px-4 py-7 shadow-[0_30px_60px_-40px_rgba(13,27,42,0.45)] sm:px-8 sm:py-9">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(154,128,96,0.09)_1px,transparent_1px),linear-gradient(90deg,rgba(154,128,96,0.09)_1px,transparent_1px)] [background-size:22px_22px]"
+          className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(119,141,122,0.09)_1px,transparent_1px),linear-gradient(90deg,rgba(119,141,122,0.09)_1px,transparent_1px)] [background-size:22px_22px]"
         />
         <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent-soft/60 blur-3xl" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 -left-20 h-72 w-72 rounded-full bg-accent-soft/50 blur-3xl" />
@@ -160,6 +162,27 @@ export function PhotoStep({ state, photos, onPhotos, onSubmit, submitError }: Pr
             tags={null}
             slotProps={slotProps}
           />
+          {/* Take the photo live with the device camera instead of picking a file. */}
+          <div className="mt-5 flex justify-between gap-3 md:mt-6 md:px-[3%]">
+            {(["body", "face"] as Kind[]).map((k) => {
+              const locked = k === "body" && !photos.face;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setCameraFor(k)}
+                  disabled={locked || !!checking}
+                  className="inline-flex min-h-11 w-[48%] items-center justify-center gap-2 rounded-full border border-ink/15 bg-paper px-3 py-2 text-xs font-semibold text-ink shadow-sm transition hover:border-ink/40 hover:bg-cream disabled:cursor-default disabled:opacity-45 sm:text-sm md:w-[28%]"
+                >
+                  <Camera size={16} className="shrink-0 text-accent-deep" />
+                  <span className="truncate">
+                    {photos[k] ? "Foto ulang" : "Kamera"}
+                    <span className="max-sm:hidden"> · {k === "face" ? "wajah" : "badan"}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
           <div className="mt-6 grid grid-cols-2 gap-3 md:hidden">
             {(["body", "face"] as Kind[]).map((k) => (
               <ul key={k} className="flex flex-col items-center gap-2.5">
@@ -216,6 +239,22 @@ export function PhotoStep({ state, photos, onPhotos, onSubmit, submitError }: Pr
         />
       </div>
       {submitError && <div className="mt-4"><ErrorBox message={submitError} /></div>}
+
+      <CameraCapture
+        key={cameraFor ?? "closed"}
+        open={cameraFor !== null}
+        title={cameraFor ? SLOTS[cameraFor].title : ""}
+        guide={cameraFor ?? "face"}
+        initialFacing="user"
+        initialTimer={cameraFor === "body" ? 10 : 0}
+        fileName={`foto-${cameraFor ?? "kamera"}`}
+        onClose={() => setCameraFor(null)}
+        onCapture={(file) => {
+          const kind = cameraFor;
+          setCameraFor(null);
+          if (kind) void accept(kind, file);
+        }}
+      />
     </div>
   );
 }
@@ -278,7 +317,7 @@ function Stage({
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: easeOut }}
-        className="absolute inset-y-0 overflow-hidden rounded-t-full rounded-b-[1.5rem] bg-[radial-gradient(ellipse_at_50%_35%,#f4ead9,#e6d7bf_70%)]"
+        className="absolute inset-y-0 overflow-hidden rounded-t-full rounded-b-[1.5rem] bg-[radial-gradient(ellipse_at_50%_35%,#faf8ef,#e6dcc7_70%)]"
         style={{ left: `${figure.left}%`, width: `${figure.width}%` }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- static guide image, decorative */}
@@ -365,7 +404,7 @@ function HangTag({ text, status, tilt, compact = false }: { text: string; status
     <motion.span
       animate={{ rotate: tilt, scale: status === "idle" ? 1 : [1, 1.06, 1] }}
       transition={{ duration: 0.45, ease: easeOut }}
-      className={`relative inline-flex items-center gap-2 rounded-[0.9rem] border py-1.5 pl-2 pr-3 shadow-[0_8px_18px_-12px_rgba(37,34,31,0.5)] transition-colors duration-500 ${
+      className={`relative inline-flex items-center gap-2 rounded-[0.9rem] border py-1.5 pl-2 pr-3 shadow-[0_8px_18px_-12px_rgba(13,27,42,0.5)] transition-colors duration-500 ${
         compact ? "max-w-[10.5rem]" : "whitespace-nowrap"
       } ${
         status === "ok"
@@ -378,7 +417,7 @@ function HangTag({ text, status, tilt, compact = false }: { text: string; status
       <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
         {status === "idle" ? (
           // the punched hole the thread goes through
-          <span className="h-2.5 w-2.5 rounded-full bg-cream shadow-[inset_0_1px_2px_rgba(37,34,31,0.35)] ring-1 ring-line" />
+          <span className="h-2.5 w-2.5 rounded-full bg-cream shadow-[inset_0_1px_2px_rgba(13,27,42,0.35)] ring-1 ring-line" />
         ) : (
           <motion.span
             initial={{ scale: 1.8, opacity: 0, rotate: -20 }}
@@ -426,7 +465,7 @@ function Print({ kind, photo, checking, busy, rejected, locked, onFile }: SlotPr
           e.preventDefault();
           if (!disabled) onFile(e.dataTransfer.files[0]);
         }}
-        className={`block bg-white p-[6%] pb-0 shadow-[0_22px_34px_-20px_rgba(37,34,31,0.55)] ring-1 transition ${
+        className={`block bg-paper p-[6%] pb-0 shadow-[0_22px_34px_-20px_rgba(13,27,42,0.55)] ring-1 transition ${
           rejected && !photo ? "ring-red-700/40" : "ring-black/5"
         } ${disabled ? "cursor-default" : "cursor-pointer"}`}
       >
@@ -447,7 +486,7 @@ function Print({ kind, photo, checking, busy, rejected, locked, onFile }: SlotPr
           {checking && (
             <>
               <span className="absolute inset-0 bg-paper/50" />
-              <SweepLine from="8%" to="92%" duration={1.6} className="inset-x-1 h-0.5 rounded-full bg-accent shadow-[0_0_12px_3px_rgba(154,128,96,0.6)]" />
+              <SweepLine from="8%" to="92%" duration={1.6} className="inset-x-1 h-0.5 rounded-full bg-accent shadow-[0_0_12px_3px_rgba(119,141,122,0.6)]" />
               <span className="absolute inset-0 flex items-center justify-center">
                 <Loader2 size={18} className="animate-spin text-accent-deep" />
               </span>
@@ -507,7 +546,7 @@ export function LandmarkDots({ points, delay = 0 }: { points: { x: number; y: nu
           initial={{ opacity: 0, scale: 0 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: delay + i * 0.04, duration: 0.3, ease: easeOut }}
-          className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-paper shadow-[0_0_0_2px_rgba(111,91,64,0.55)]"
+          className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-paper shadow-[0_0_0_2px_rgba(78,100,81,0.55)]"
           style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
         />
       ))}

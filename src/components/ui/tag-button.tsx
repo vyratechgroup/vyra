@@ -32,8 +32,8 @@ const TONES: Record<Tone, { rest: string; hover: string; text: string; hole: str
     circleHover: "bg-accent-light text-ink",
     string: "text-ink/60",
     stringHover: "text-accent-deep",
-    shadow: "shadow-[0_18px_30px_-16px_rgba(37,34,31,0.7)]",
-    shadowHover: "shadow-[0_28px_40px_-18px_rgba(111,91,64,0.8)]",
+    shadow: "shadow-[0_18px_30px_-16px_rgba(13,27,42,0.7)]",
+    shadowHover: "shadow-[0_28px_40px_-18px_rgba(78,100,81,0.8)]",
   },
   paper: {
     rest: "bg-paper",
@@ -92,7 +92,7 @@ export function TagButton({
     },
     onHoverEnd: () => setHover(false),
     className: `group relative flex shrink-0 items-stretch outline-none ${
-      fullWidth ? "ml-12 w-[calc(100%-3rem)]" : "ml-12 w-fit"
+      fullWidth ? "ml-12 w-[calc(100%-3rem)]" : "ml-12 w-fit max-w-[calc(100%-3rem)]"
     } ${live ? "cursor-pointer" : busy ? "cursor-wait" : "cursor-not-allowed"} focus-visible:[&>span:last-child]:ring-2 focus-visible:[&>span:last-child]:ring-accent ${className}`,
     style: { transformOrigin: "1.6rem 50%" },
     animate: lifted
@@ -134,14 +134,14 @@ export function TagButton({
       />
       <span
         aria-hidden="true"
-        className={`absolute left-[1.15rem] top-1/2 z-10 h-3 w-3 -translate-y-1/2 rounded-full shadow-[inset_0_1px_2px_rgba(37,34,31,0.45)] transition-colors duration-300 ${
+        className={`absolute left-[1.15rem] top-1/2 z-10 h-3 w-3 -translate-y-1/2 rounded-full shadow-[inset_0_1px_2px_rgba(13,27,42,0.45)] transition-colors duration-300 ${
           ready ? t.hole : "bg-cream ring-1 ring-line"
         }`}
       />
 
       {/* body */}
       <span
-        className={`relative flex flex-1 items-center gap-4 overflow-hidden rounded-r-[1.4rem] pl-5 pr-3 transition-[background-color,box-shadow] duration-300 ${
+        className={`relative flex min-w-0 flex-1 items-center gap-4 overflow-hidden rounded-r-[1.4rem] pl-5 pr-3 transition-[background-color,box-shadow] duration-300 ${
           big ? "py-3.5" : "py-2.5"
         } ${fill} ${
           !ready
@@ -163,7 +163,7 @@ export function TagButton({
           />
         )}
         <span
-          className={`relative whitespace-nowrap font-display italic leading-tight transition-[letter-spacing] duration-300 ${
+          className={`relative min-w-0 font-display italic leading-tight sm:whitespace-nowrap transition-[letter-spacing] duration-300 ${
             big ? "text-2xl" : "text-xl"
           } ${lifted ? "tracking-wide" : ""}`}
         >

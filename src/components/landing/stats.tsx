@@ -81,7 +81,7 @@ export function Stats() {
             <motion.div
               animate={{ y: [0, s.float, 0] }}
               transition={{ duration: 5 + i, ease: "easeInOut", repeat: Infinity }}
-              className={`flex aspect-square w-40 flex-col items-center justify-center rounded-full p-6 text-center shadow-[0_30px_60px_-30px_rgba(37,34,31,0.45)] sm:w-48 lg:w-60 ${s.tone}`}
+              className={`flex aspect-square w-40 flex-col items-center justify-center rounded-full p-6 text-center shadow-[0_30px_60px_-30px_rgba(13,27,42,0.45)] sm:w-48 lg:w-60 ${s.tone}`}
             >
               <p className="font-display text-5xl leading-none tracking-tight lg:text-6xl">
                 <Counter {...s} />

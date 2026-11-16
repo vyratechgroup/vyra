@@ -262,7 +262,7 @@ export function AdminOverviewSection({
 
               <div className={styles.chartBarRow}>
                 <div className={styles.chartBarLabelRow}>
-                  <span style={{ color: '#475569' }}>
+                  <span style={{ color: '#415A77' }}>
                     Actual (FASHN VTO)
                   </span>
                   <span className={styles.tabularNums}>
@@ -282,7 +282,7 @@ export function AdminOverviewSection({
 
               <div className={styles.chartBarRow}>
                 <div className={styles.chartBarLabelRow}>
-                  <span style={{ color: '#475569' }}>
+                  <span style={{ color: '#415A77' }}>
                     Estimated (Gemini Analysis)
                   </span>
                   <span className={styles.tabularNums}>
@@ -302,7 +302,7 @@ export function AdminOverviewSection({
 
               <div className={styles.chartBarRow}>
                 <div className={styles.chartBarLabelRow}>
-                  <span style={{ color: '#64748B' }}>
+                  <span style={{ color: '#415A77' }}>
                     Midtrans MDR (0.7%)
                   </span>
                   <span className={styles.tabularNums}>
@@ -314,7 +314,7 @@ export function AdminOverviewSection({
                     className={styles.chartBarFill}
                     style={{
                       width: getBarWidth(midtransFee),
-                      backgroundColor: '#94A3B8',
+                      backgroundColor: '#7D8FA5',
                     }}
                   />
                 </div>
@@ -433,7 +433,7 @@ export function AdminOverviewSection({
                   borderRadius: '10px',
                   background: killSwitch?.paidWorkPaused
                     ? 'var(--admin-danger-bg)'
-                    : '#F8FAFC',
+                    : '#F4F1DE',
                   border: `1px solid ${
                     killSwitch?.paidWorkPaused ? '#FECACA' : 'var(--admin-border)'
                   }`,
@@ -474,7 +474,7 @@ export function AdminOverviewSection({
                   className={styles.metricSubtext}
                   style={{
                     marginBottom: '0.75rem',
-                    color: killSwitch?.paidWorkPaused ? '#991B1B' : '#64748B',
+                    color: killSwitch?.paidWorkPaused ? '#991B1B' : '#415A77',
                   }}
                 >
                   {killSwitch?.paidWorkPaused
@@ -486,7 +486,7 @@ export function AdminOverviewSection({
                   <button
                     type="button"
                     className={styles.primaryButton}
-                    style={{ width: '100%', background: '#16A34A', borderColor: '#16A34A' }}
+                    style={{ width: '100%', background: '#4E6451', borderColor: '#4E6451' }}
                     onClick={onResumeKillSwitch}
                   >
                     <IconPlay size={16} aria-hidden="true" />
@@ -510,7 +510,7 @@ export function AdminOverviewSection({
                 style={{
                   padding: '1rem',
                   borderRadius: '10px',
-                  background: '#F8FAFC',
+                  background: '#F4F1DE',
                   border: '1px solid var(--admin-border)',
                 }}
               >
@@ -543,7 +543,7 @@ export function AdminOverviewSection({
                     className={styles.metricSubtext}
                     style={{
                       marginTop: '0.5rem',
-                      color: cleanupFeedback.startsWith('✓') ? '#166534' : '#991B1B',
+                      color: cleanupFeedback.startsWith('✓') ? '#3E5141' : '#991B1B',
                       fontWeight: 500,
                     }}
                   >
@@ -582,9 +582,9 @@ export function AdminOverviewSection({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '0.65rem 0.75rem',
-                      background: '#F8FAFC',
+                      background: '#F4F1DE',
                       borderRadius: '8px',
-                      border: '1px solid #F1F5F9',
+                      border: '1px solid #ECE7D1',
                     }}
                   >
                     <div>
@@ -602,7 +602,7 @@ export function AdminOverviewSection({
                         <span
                           style={{
                             fontSize: '0.72rem',
-                            color: '#64748B',
+                            color: '#415A77',
                             fontFamily: 'var(--font-mono, monospace)',
                           }}
                         >
