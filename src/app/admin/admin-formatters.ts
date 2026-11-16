@@ -213,29 +213,39 @@ export function buildFinancialLedgerEntries(
 
     for (const job of linkedJobs) {
       const events = eventsByJobId.get(job.id) ?? [];
-      for (const ev of events) {
-        if (ev.provider === 'gemini') {
-          geminiCostIdr += ev.amountIdr;
-        } else if (ev.provider === 'fashn') {
-          fashnCostIdr += ev.amountIdr;
+      if (events.length > 0) {
+        for (const ev of events) {
+          if (ev.provider === 'gemini') {
+            geminiCostIdr += ev.amountIdr;
+          } else if (ev.provider === 'fashn') {
+            fashnCostIdr += ev.amountIdr;
+          }
+        }
+      } else if (job.status === 'completed') {
+        // Reconcile unlogged completed job
+        if (job.type === 'virtual_try_on' || job.provider === 'fashn') {
+          const isDualGarment = Boolean(
+            job.input?.bottomGarmentId ||
+              job.metadata?.isDualGarment ||
+              (job.metadata?.garmentCount &&
+                Number(job.metadata.garmentCount) > 1),
+          );
+          const credits = isDualGarment ? 2 : 1;
+          fashnCostIdr += credits * 1423;
+        } else if (job.type === 'analysis' || job.provider === 'gemini') {
+          geminiCostIdr += 28;
         }
       }
     }
 
-    // Default fallback unit economics if not captured in events
+    // Default fallback unit economics only if no jobs are linked but token was consumed
     if (
       geminiCostIdr === 0 &&
       tx.status.toLowerCase() === 'paid' &&
-      tx.token?.status === 'consumed'
+      tx.token?.status === 'consumed' &&
+      linkedJobs.length === 0
     ) {
-      geminiCostIdr = 500;
-    }
-    if (
-      fashnCostIdr === 0 &&
-      tx.status.toLowerCase() === 'paid' &&
-      tx.token?.status === 'consumed'
-    ) {
-      fashnCostIdr = 1350;
+      geminiCostIdr = 28;
     }
 
     const totalCogsIdr = midtransFeeIdr + geminiCostIdr + fashnCostIdr;

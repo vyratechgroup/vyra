@@ -645,17 +645,46 @@ export function createSupabaseStore(urlOrClient: string | SupabaseClient, secret
     },
 
     async logUsage(e) {
+      if (!e.jobId) return;
+      if (
+        e.feature !== 'personal_color' &&
+        e.feature !== 'body_shape' &&
+        e.feature !== 'virtual_try_on'
+      ) {
+        return;
+      }
+
       const uuid = toUuid(e.id);
       const now = new Date().toISOString();
-      await db.from('usage_events').insert({
-        id: uuid,
-        job_id: e.jobId ? toUuid(e.jobId) : null,
-        provider: e.provider || 'gemini',
-        feature: e.feature,
-        estimated_cost_idr: e.estimatedCostIdr,
-        status: e.status,
-        created_at: e.timestamp || now,
-      });
+      const provider = e.provider === 'fashn' ? 'fashn' : 'gemini';
+      const rawStatus = String(e.status);
+      const status =
+        rawStatus === 'error' || rawStatus === 'failed'
+          ? 'failed'
+          : rawStatus === 'needs_review'
+            ? 'needs_review'
+            : 'completed';
+      const defaultModel =
+        provider === 'fashn' ? 'tryon-v1.6' : 'gemini-2.5-flash';
+      const model = (e as any).model || defaultModel;
+
+      try {
+        const { error } = await db.from('usage_events').insert({
+          id: uuid,
+          job_id: toUuid(e.jobId),
+          provider,
+          feature: e.feature,
+          model,
+          estimated_cost_idr: Math.round(Number(e.estimatedCostIdr || 0)),
+          status,
+          created_at: e.timestamp || now,
+        });
+        if (error) {
+          console.error('[supabase-store] logUsage insert error:', error.message);
+        }
+      } catch (err) {
+        console.error('[supabase-store] logUsage unexpected error:', err);
+      }
     },
   };
 }

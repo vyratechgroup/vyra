@@ -70,6 +70,9 @@ export interface AdminJobItem {
   } | null;
   createdAt: string;
   updatedAt: string;
+  metadata?: Record<string, unknown>;
+  input?: Record<string, unknown>;
+  result?: Record<string, unknown>;
 }
 
 export interface AdminUsageCostItem {
@@ -235,6 +238,147 @@ export function normalizeProductLabels(
     body_shapes: bodyShapes,
     color_tones: colorTones,
     sizes,
+  };
+}
+
+export interface ReconciledUsageCosts {
+  fashnActualCostIdr: number;
+  geminiEstimatedCostIdr: number;
+  allUsageEvents: AdminUsageCostItem[];
+}
+
+export function reconcileUsageCosts(
+  rawJobs: (AdminJobItem & { metadata?: any; input?: any; result?: any })[],
+  existingEvents: AdminUsageCostItem[] = [],
+): ReconciledUsageCosts {
+  const allUsageEvents = [...(existingEvents || [])];
+  const eventsByJobId = new Map<string, AdminUsageCostItem[]>();
+
+  for (const ev of allUsageEvents) {
+    const list = eventsByJobId.get(ev.jobId) ?? [];
+    list.push(ev);
+    eventsByJobId.set(ev.jobId, list);
+  }
+
+  for (const job of rawJobs || []) {
+    if (job.status !== 'completed') continue;
+
+    const jobEvents = eventsByJobId.get(job.id) ?? [];
+
+    if (job.type === 'virtual_try_on') {
+      const fashnEvents = jobEvents.filter((e) => e.provider === 'fashn');
+      const isDual =
+        Boolean(job.metadata?.isDualGarment) ||
+        (Boolean(job.input?.topProductId) && Boolean(job.input?.bottomProductId)) ||
+        (Boolean((job.input as any)?.top) && Boolean((job.input as any)?.bottom)) ||
+        Boolean(
+          (job.result as any)?.pipelineResult?.quotaDeduction?.top &&
+            (job.result as any)?.pipelineResult?.quotaDeduction?.bottom,
+        );
+
+      if (fashnEvents.length === 0) {
+        if (isDual) {
+          const evTop: AdminUsageCostItem = {
+            id: `rec-${job.id}-top`,
+            jobId: job.id,
+            provider: 'fashn',
+            feature: 'virtual_try_on',
+            model: 'tryon-v1.6 (atasan)',
+            costType: 'actual',
+            amountIdr: 1423,
+            inputTokens: null,
+            outputTokens: null,
+            status: 'completed',
+            errorCode: null,
+            createdAt: job.updatedAt || job.createdAt,
+          };
+          const evBottom: AdminUsageCostItem = {
+            id: `rec-${job.id}-bottom`,
+            jobId: job.id,
+            provider: 'fashn',
+            feature: 'virtual_try_on',
+            model: 'tryon-v1.6 (bawahan)',
+            costType: 'actual',
+            amountIdr: 1423,
+            inputTokens: null,
+            outputTokens: null,
+            status: 'completed',
+            errorCode: null,
+            createdAt: job.updatedAt || job.createdAt,
+          };
+          allUsageEvents.push(evTop, evBottom);
+          eventsByJobId.set(job.id, [...jobEvents, evTop, evBottom]);
+        } else {
+          const ev: AdminUsageCostItem = {
+            id: `rec-${job.id}`,
+            jobId: job.id,
+            provider: 'fashn',
+            feature: 'virtual_try_on',
+            model: 'tryon-v1.6',
+            costType: 'actual',
+            amountIdr: 1423,
+            inputTokens: null,
+            outputTokens: null,
+            status: 'completed',
+            errorCode: null,
+            createdAt: job.updatedAt || job.createdAt,
+          };
+          allUsageEvents.push(ev);
+          eventsByJobId.set(job.id, [...jobEvents, ev]);
+        }
+      }
+    } else if (job.type === 'analysis') {
+      const geminiEvents = jobEvents.filter((e) => e.provider === 'gemini');
+      if (geminiEvents.length === 0) {
+        const evColor: AdminUsageCostItem = {
+          id: `rec-${job.id}-color`,
+          jobId: job.id,
+          provider: 'gemini',
+          feature: 'personal_color',
+          model: 'gemini-2.5-flash',
+          costType: 'estimated',
+          amountIdr: 14,
+          inputTokens: 100,
+          outputTokens: 50,
+          status: 'completed',
+          errorCode: null,
+          createdAt: job.updatedAt || job.createdAt,
+        };
+        const evBody: AdminUsageCostItem = {
+          id: `rec-${job.id}-body`,
+          jobId: job.id,
+          provider: 'gemini',
+          feature: 'body_shape',
+          model: 'gemini-2.5-flash',
+          costType: 'estimated',
+          amountIdr: 14,
+          inputTokens: 100,
+          outputTokens: 50,
+          status: 'completed',
+          errorCode: null,
+          createdAt: job.updatedAt || job.createdAt,
+        };
+        allUsageEvents.push(evColor, evBody);
+        eventsByJobId.set(job.id, [...jobEvents, evColor, evBody]);
+      }
+    }
+  }
+
+  let fashnActualCostIdr = 0;
+  let geminiEstimatedCostIdr = 0;
+
+  for (const ev of allUsageEvents) {
+    if (ev.provider === 'fashn') {
+      fashnActualCostIdr += ev.amountIdr;
+    } else if (ev.provider === 'gemini') {
+      geminiEstimatedCostIdr += ev.amountIdr;
+    }
+  }
+
+  return {
+    fashnActualCostIdr,
+    geminiEstimatedCostIdr,
+    allUsageEvents,
   };
 }
 
@@ -735,23 +879,16 @@ export function createInMemoryAdminDataRepository(): AdminRepository {
       );
 
       const tokens = Array.from(state.tokensByHash.values());
-      const allJobs = [
-        ...(Array.from(state.analysisJobsById.values()) as InMemoryJobItem[]),
-        ...(Array.from(state.vtoJobsById.values()) as InMemoryJobItem[]),
-      ];
+      const rawAnalysisJobs = Array.from(
+        state.analysisJobsById.values(),
+      ) as InMemoryJobItem[];
+      const rawVtoJobs = Array.from(
+        state.vtoJobsById.values(),
+      ) as InMemoryJobItem[];
 
-      let geminiEstimatedCostIdr = 0;
-      let fashnActualCostIdr = 0;
-
-      const usageEvents: AdminUsageCostItem[] = state.usageEvents.map(
+      const rawUsageEvents: AdminUsageCostItem[] = state.usageEvents.map(
         (event) => {
           const isGemini = event.provider === 'gemini';
-          if (isGemini) {
-            geminiEstimatedCostIdr += event.estimatedCostIdr;
-          } else {
-            fashnActualCostIdr += event.estimatedCostIdr;
-          }
-
           return {
             id: event.id,
             jobId: event.jobId,
@@ -769,6 +906,46 @@ export function createInMemoryAdminDataRepository(): AdminRepository {
         },
       );
 
+      const mappedJobs: AdminJobItem[] = [
+        ...rawAnalysisJobs.map((j) => ({
+          id: j.id,
+          tokenId: j.tokenId,
+          type: 'analysis' as const,
+          status: j.status,
+          provider: 'gemini' as const,
+          providerReference: j.providerReference,
+          attemptCount: j.attemptCount ?? 1,
+          tokenRecoveryStatus: 'consumed',
+          durationMs: null,
+          error: j.error,
+          metadata: (j as any).metadata,
+          input: (j as any).input,
+          result: (j as any).result,
+          createdAt: j.createdAt,
+          updatedAt: j.updatedAt,
+        })),
+        ...rawVtoJobs.map((j) => ({
+          id: j.id,
+          tokenId: j.tokenId,
+          type: 'virtual_try_on' as const,
+          status: j.status,
+          provider: 'fashn' as const,
+          providerReference: j.providerReference,
+          attemptCount: j.attemptCount ?? 1,
+          tokenRecoveryStatus: 'consumed',
+          durationMs: null,
+          error: j.error,
+          metadata: (j as any).metadata,
+          input: (j as any).input,
+          result: (j as any).result,
+          createdAt: j.createdAt,
+          updatedAt: j.updatedAt,
+        })),
+      ];
+
+      const { fashnActualCostIdr, geminiEstimatedCostIdr, allUsageEvents } =
+        reconcileUsageCosts(mappedJobs, rawUsageEvents);
+
       return {
         totalRevenueIdr,
         paidTransactionsCount: paidPayments.length,
@@ -781,13 +958,13 @@ export function createInMemoryAdminDataRepository(): AdminRepository {
         consumedTokensCount: tokens.filter((t) => t.status === 'consumed')
           .length,
         expiredTokensCount: tokens.filter((t) => t.status === 'expired').length,
-        totalJobsCount: allJobs.length,
-        completedJobsCount: allJobs.filter((j) => j.status === 'completed')
+        totalJobsCount: mappedJobs.length,
+        completedJobsCount: mappedJobs.filter((j) => j.status === 'completed')
           .length,
-        failedJobsCount: allJobs.filter((j) => j.status === 'failed').length,
+        failedJobsCount: mappedJobs.filter((j) => j.status === 'failed').length,
         geminiEstimatedCostIdr,
         fashnActualCostIdr,
-        usageEvents,
+        usageEvents: allUsageEvents,
       };
     },
   };
@@ -1088,7 +1265,11 @@ export function createSupabaseAdminRepository(): AdminRepository {
       const [paymentsRes, tokensRes, jobsRes, usageRes] = await Promise.all([
         client.from('payments').select('amount, status'),
         client.from('tokens').select('status'),
-        client.from('jobs').select('status'),
+        client
+          .from('jobs')
+          .select(
+            'id, token_id, type, status, input, result, created_at, updated_at',
+          ),
         client
           .from('usage_events')
           .select(
@@ -1113,19 +1294,10 @@ export function createSupabaseAdminRepository(): AdminRepository {
       const tokens = tokensRes.data ?? [];
       const jobs = jobsRes.data ?? [];
 
-      let geminiEstimatedCostIdr = 0;
-      let fashnActualCostIdr = 0;
-
-      const usageEvents: AdminUsageCostItem[] = (usageRes.data ?? []).map(
+      const rawUsageEvents: AdminUsageCostItem[] = (usageRes.data ?? []).map(
         (row) => {
           const provider = String(row.provider) as 'gemini' | 'fashn';
           const amountIdr = Number(row.estimated_cost_idr ?? 0);
-          if (provider === 'gemini') {
-            geminiEstimatedCostIdr += amountIdr;
-          } else {
-            fashnActualCostIdr += amountIdr;
-          }
-
           return {
             id: String(row.id),
             jobId: String(row.job_id),
@@ -1149,6 +1321,26 @@ export function createSupabaseAdminRepository(): AdminRepository {
         },
       );
 
+      const mappedJobs: AdminJobItem[] = jobs.map((row) => ({
+        id: String(row.id),
+        tokenId: String(row.token_id),
+        type: row.type === 'virtual_try_on' ? 'virtual_try_on' : 'analysis',
+        status: String(row.status),
+        provider: row.type === 'virtual_try_on' ? 'fashn' : 'gemini',
+        providerReference: null,
+        attemptCount: 1,
+        tokenRecoveryStatus: 'consumed',
+        durationMs: null,
+        error: null,
+        input: row.input as Record<string, unknown> | undefined,
+        result: row.result as Record<string, unknown> | undefined,
+        createdAt: String(row.created_at),
+        updatedAt: String(row.updated_at),
+      }));
+
+      const { fashnActualCostIdr, geminiEstimatedCostIdr, allUsageEvents } =
+        reconcileUsageCosts(mappedJobs, rawUsageEvents);
+
       return {
         totalRevenueIdr,
         paidTransactionsCount: paidPayments.length,
@@ -1166,7 +1358,7 @@ export function createSupabaseAdminRepository(): AdminRepository {
         failedJobsCount: jobs.filter((j) => j.status === 'failed').length,
         geminiEstimatedCostIdr,
         fashnActualCostIdr,
-        usageEvents,
+        usageEvents: allUsageEvents,
       };
     },
   };

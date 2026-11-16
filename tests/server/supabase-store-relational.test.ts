@@ -215,4 +215,56 @@ describe('supabase relational store mapping', () => {
     expect(vtoMeta).not.toBeNull();
     expect(vtoMeta?.kind).toBe('tryon');
   });
+
+  it('safely inserts usage events with valid model, mapped status, and filters non-ai features', async () => {
+    const insertedRows: any[] = [];
+    const mockClient = {
+      from: (table: string) => {
+        if (table === 'usage_events') {
+          return {
+            insert: async (payload: any) => {
+              insertedRows.push(payload);
+              return { error: null };
+            },
+          };
+        }
+        return {
+          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }),
+        };
+      },
+    } as any;
+
+    const store = createSupabaseStore(mockClient);
+
+    // 1. Should ignore payment feature or missing jobId
+    await store.logUsage({
+      id: 'use-pay-1',
+      provider: 'midtrans' as any,
+      feature: 'payment' as any,
+      jobId: '',
+      estimatedCostIdr: 133,
+      status: 'success',
+      detail: null,
+      timestamp: new Date().toISOString(),
+    });
+    expect(insertedRows).toHaveLength(0);
+
+    // 2. Should insert valid FASHN usage event with status completed and default model
+    await store.logUsage({
+      id: 'use-vto-1',
+      provider: 'fashn' as any,
+      feature: 'virtual_try_on',
+      jobId: '11111111-1111-4111-8111-111111111111',
+      estimatedCostIdr: 1423,
+      status: 'success',
+      detail: null,
+      timestamp: '2026-11-14T10:00:00.000Z',
+    });
+
+    expect(insertedRows).toHaveLength(1);
+    expect(insertedRows[0].status).toBe('completed');
+    expect(insertedRows[0].model).toBe('tryon-v1.6');
+    expect(insertedRows[0].provider).toBe('fashn');
+    expect(insertedRows[0].estimated_cost_idr).toBe(1423);
+  });
 });

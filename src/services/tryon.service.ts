@@ -191,12 +191,15 @@ async function loadGarmentBytes(imagePath: string): Promise<Uint8Array> {
 }
 
 function logUsage(job: TryonJob, ok: boolean, detail: string | null) {
+  const productIds = job.productId.split(",").map((s) => s.trim()).filter(Boolean);
+  const credits = productIds.length > 1 ? 2 : 1;
+  const cost = job.provider === "mock" ? 0 : (ok ? config.estimatedCostIdr.fashnPerOutput * credits : 0);
   return getStore().logUsage({
     id: newId("use"),
     provider: job.provider,
     feature: "virtual_try_on",
     jobId: job.id,
-    estimatedCostIdr: job.provider === "mock" ? 0 : config.estimatedCostIdr.fashnPerOutput,
+    estimatedCostIdr: cost,
     status: ok ? "success" : "error",
     detail,
     timestamp: new Date().toISOString(),

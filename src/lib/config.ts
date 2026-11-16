@@ -103,11 +103,10 @@ export const config = {
   // ponytail: fallback to CRON_SECRET if MEDIA_SIGNING_SECRET is omitted
   mediaSigningSecret: env.MEDIA_SIGNING_SECRET ?? env.CRON_SECRET ?? (isProduction ? undefined : devFallbackSecret()),
 
-  // Analysis cost comes from OpenRouter's reported charge per call. FASHN still uses
-  // the PRD §I planning estimate until real invoices are in.
+  // FASHN unit economics: 100 credits = $9 = Rp 142.264,12 => 1 credit = Rp 1.423
   usdToIdr: Number(env.USD_TO_IDR) || 18_000,
   estimatedCostIdr: {
-    fashnPerOutput: 1_350,
+    fashnPerOutput: 1_423,
   },
 };
 
